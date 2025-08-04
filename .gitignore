@@ -1,0 +1,41 @@
+# Sui Move
+build/
+Move.lock
+
+# Node/TypeScript
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+
+# Sui client config
+.sui/
+sui.log.*
+
+# Private keys and sensitive data
+*.key
+*.pem
+*.secret
