@@ -1,0 +1,29 @@
+build/*
+.trace
+.coverage*
+
+# Sui/Move build artifacts
+/backend/suibian_marketplace/build/
+
+# Frontend dependencies
+/frontend/node_modules/
+
+# Frontend build output
+/frontend/dist/
+/frontend/.next/
+/frontend/build/
+
+# Local environment variables
+# Ignore all .env files but not the example template
+.env*
+!.env.example
+
+# Log files
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# IDE and OS specific files
+.vscode/
+.idea/
+.DS_Store
