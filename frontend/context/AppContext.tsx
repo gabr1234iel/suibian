@@ -1,20 +1,19 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AppContextType, Theme, DecodedJwt, UserData } from '../types';
-import { jwtDecode } from 'jwt-decode';
-import { SuiClient } from '@mysten/sui.js/client';
-import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519';
-import { fromB64 } from '@mysten/sui.js/utils';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { AppContextType, Theme, DecodedJwt, UserData } from "../types";
+import { jwtDecode } from "jwt-decode";
+import { SuiClient } from "@mysten/sui/client";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import {
   generateRandomness,
   generateNonce,
   computeZkLoginAddress,
-} from '@mysten/zklogin';
+} from "@mysten/sui/zklogin";
 
 // Firebase imports
-import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
 const SUI_TESTNET_RPC_URL = "https://fullnode.testnet.sui.io";
 
@@ -37,7 +36,7 @@ const db = getFirestore(app);
 const testFirebaseConnection = async () => {
   try {
     // Try to access a dummy document to test connection
-    const testDoc = doc(db, 'test', 'connection');
+    const testDoc = doc(db, "test", "connection");
     await getDoc(testDoc);
     console.log("Firebase connection successful");
     return true;
@@ -61,7 +60,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const useAppContext = (): AppContextType => {
   const context = useContext(AppContext);
   if (!context) {
-    throw new Error('useAppContext must be used within an AppContextProvider');
+    throw new Error("useAppContext must be used within an AppContextProvider");
   }
   return context;
 };
@@ -70,9 +69,11 @@ interface AppContextProviderProps {
   children: React.ReactNode;
 }
 
-export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children }) => {
+export const AppContextProvider: React.FC<AppContextProviderProps> = ({
+  children,
+}) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>("light");
   const [userAddress, setUserAddress] = useState<string | null>(null);
   const [nonce, setNonce] = useState<string | null>(null);
   const [randomness, setRandomness] = useState<string | null>(null);
@@ -85,7 +86,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
 
   useEffect(() => {
     // Load theme from localStorage on component mount
-    const savedTheme = localStorage.getItem('theme') as Theme;
+    const savedTheme = localStorage.getItem("theme") as Theme;
     if (savedTheme) {
       setTheme(savedTheme);
     }
@@ -93,13 +94,13 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
 
   useEffect(() => {
     // Apply theme to document root
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
     }
     // Save theme to localStorage
-    localStorage.setItem('theme', theme);
+    localStorage.setItem("theme", theme);
   }, [theme]);
 
   useEffect(() => {
@@ -158,19 +159,23 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
       console.log("User data saved to Firebase successfully");
     } catch (error: any) {
       console.error("Error saving user data to Firebase:", error);
-      
-      if (error.code === 'permission-denied') {
-        console.error("Firebase permission denied. This is likely due to Firestore security rules.");
-        console.error("Please update your Firestore rules to allow read/write access.");
+
+      if (error.code === "permission-denied") {
+        console.error(
+          "Firebase permission denied. This is likely due to Firestore security rules."
+        );
+        console.error(
+          "Please update your Firestore rules to allow read/write access."
+        );
         // Don't throw - allow the app to continue without Firebase storage
         return;
       }
-      
+
       if (error instanceof Error) {
         console.error("Error message:", error.message);
         console.error("Error stack:", error.stack);
       }
-      
+
       // Don't throw the error for now to allow graceful degradation
       console.warn("Continuing without Firebase storage...");
     }
@@ -181,7 +186,10 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
     googleId: string
   ): Promise<UserData | null> => {
     try {
-      console.log("Attempting to get user from Firebase with Google ID:", googleId);
+      console.log(
+        "Attempting to get user from Firebase with Google ID:",
+        googleId
+      );
       const userDoc = await getDoc(doc(db, "users", googleId));
       if (userDoc.exists()) {
         console.log("User document found in Firebase");
@@ -191,19 +199,23 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
       return null;
     } catch (error: any) {
       console.error("Error getting user data from Firebase:", error);
-      
-      if (error.code === 'permission-denied') {
-        console.error("Firebase permission denied. This is likely due to Firestore security rules.");
-        console.error("Please update your Firestore rules to allow read/write access.");
+
+      if (error.code === "permission-denied") {
+        console.error(
+          "Firebase permission denied. This is likely due to Firestore security rules."
+        );
+        console.error(
+          "Please update your Firestore rules to allow read/write access."
+        );
         // For now, return null to allow the app to continue
         return null;
       }
-      
+
       if (error instanceof Error) {
         console.error("Error message:", error.message);
         console.error("Error stack:", error.stack);
       }
-      
+
       // Don't throw the error, just return null to allow graceful degradation
       return null;
     }
@@ -222,7 +234,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
       }
     } catch (error: any) {
       console.error("Error updating last login:", error);
-      if (error.code === 'permission-denied') {
+      if (error.code === "permission-denied") {
         console.warn("Cannot update last login due to Firebase permissions");
       }
       // Don't throw - this is not critical
@@ -305,17 +317,25 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
       }
     } catch (error: any) {
       console.error("Error during login process:", error);
-      
-      if (error.code === 'permission-denied') {
-        console.error("Firebase permission denied - continuing with local-only mode");
-        console.warn("User data will not be persisted. Please check Firestore security rules.");
+
+      if (error.code === "permission-denied") {
+        console.error(
+          "Firebase permission denied - continuing with local-only mode"
+        );
+        console.warn(
+          "User data will not be persisted. Please check Firestore security rules."
+        );
         // Still allow login to succeed, just without Firebase persistence
       } else {
         if (error instanceof Error) {
           console.error("Error message:", error.message);
           console.error("Error stack:", error.stack);
         }
-        alert(`Error during login: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+        alert(
+          `Error during login: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }. Please try again.`
+        );
         return; // Exit if non-Firebase error
       }
     } finally {
@@ -351,7 +371,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
   };
 
   const toggleTheme = (): void => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
   };
 
   const value: AppContextType = {
@@ -369,9 +389,5 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({ children
     toggleTheme,
   };
 
-  return (
-    <AppContext.Provider value={value}>
-      {children}
-    </AppContext.Provider>
-  );
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
