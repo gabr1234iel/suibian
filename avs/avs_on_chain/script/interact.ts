@@ -6,9 +6,9 @@ import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { fromB64 } from '@mysten/sui.js/utils';
 
 // Configuration
-const PACKAGE_ID = "0xbfa230cd6c7790d7f28f46ba6fd5dba730eef31c56f28a4cef494e4807e57686";
-const REGISTRY_ID = "0x60c2c70b956e8c47d683cc8ab229043c21337a9f0261ce839e3742abc45b32b5";
-const SLASHING_MANAGER_ID = "0x34b5e87a6f6852a5ba07a36a3e1d55f2efc0fb97b582bcff81640b125a6dda4e";
+const PACKAGE_ID = "0xc61c053b1df7e80fd60e04896609d5631f93616d894411d22f5ee37cba50e981";
+const REGISTRY_ID = "0x523aa5391590c7eb28c87c2d4112d2bd40262467c37d04a523ba6cfbb0cf6e9f";
+const SLASHING_MANAGER_ID = "0x148da6bf784488077b97fb90f5e28a45f548d55759076f59487e73c3a6316fb0";
 const PRIVATE_KEY_1 = "suiprivkey1qqedr5y058s9z2qy53kf9nql77c4a73h4mnxygl8hrqlf4f904amg6wzvh9";
 const PRIVATE_KEY_2 = "suiprivkey1qrs7dm44uc7lvnff69wd8zfc6p3az2g07zm4e6zjqjaxc7n6fqyac9nhuzy";
 const PRIVATE_KEY_3 = "suiprivkey1qq669pg0f36kp6axxu8cp9rlrg87matt75qec7vkragmkrmkda572t9fcdj";
