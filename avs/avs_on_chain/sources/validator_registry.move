@@ -7,13 +7,14 @@ module avs_on_chain::validator_registry {
     use sui::tx_context::{Self, TxContext};
     use sui::transfer;
     use sui::event;
-    use std::vector;
 
     // Errors
     const EInsufficientStake: u64 = 1;
     const EValidatorNotFound: u64 = 2;
     const EValidatorAlreadyExists: u64 = 3;
     const EValidatorNotActive: u64 = 4;
+    const EValidatorStillActive: u64 = 5;
+    const EInsufficientStakeForWithdrawal: u64 = 6;
 
     public struct ValidatorRegistry has key {
         id: UID,
@@ -23,7 +24,7 @@ module avs_on_chain::validator_registry {
         active_count: u64,
     }
 
-    public struct ValidatorInfo has store {
+    public struct ValidatorInfo has store, drop {
         stake_amount: u64,
         reputation: u64,        // 0-100 score
         total_validations: u64,
@@ -37,6 +38,17 @@ module avs_on_chain::validator_registry {
         validator: address,
         stake_amount: u64,
         timestamp: u64,
+    }
+
+    public struct ValidatorDeactivated has copy, drop {
+        validator: address,
+        timestamp: u64,
+    }
+
+    public struct ValidatorStakeWithdrawn has copy, drop {
+        validator: address,
+        withdrawn_amount: u64,
+        remaining_stake: u64,
     }
 
     public struct ValidatorSlashed has copy, drop {
@@ -54,7 +66,7 @@ module avs_on_chain::validator_registry {
             min_stake: 10000000, // 0.01 SUI minimum
             active_count: 0,
         };
-        transfer::share_object(registry);
+        transfer::share_object(registry); // Makes registry accessible to all validators
     }
 
     // Register as validator
@@ -89,6 +101,61 @@ module avs_on_chain::validator_registry {
         });
     }
 
+    // NEW: Deactivate validator (required before withdrawal)
+    public entry fun deactivate_validator(
+        registry: &mut ValidatorRegistry,
+        ctx: &mut TxContext
+    ) {
+        let validator = tx_context::sender(ctx);
+        
+        assert!(table::contains(&registry.validators, validator), EValidatorNotFound);
+        
+        let info = table::borrow_mut(&mut registry.validators, validator);
+        assert!(info.is_active, EValidatorNotActive);
+        
+        info.is_active = false;
+        registry.active_count = registry.active_count - 1;
+        
+        event::emit(ValidatorDeactivated {
+            validator,
+            timestamp: tx_context::epoch_timestamp_ms(ctx),
+        });
+    }
+
+    // NEW: Withdraw stake (only for deactivated validators)
+    public entry fun withdraw_stake(
+        registry: &mut ValidatorRegistry,
+        withdrawal_amount: u64,
+        ctx: &mut TxContext
+    ) {
+        let validator = tx_context::sender(ctx);
+        
+        assert!(table::contains(&registry.validators, validator), EValidatorNotFound);
+        
+        let info = table::borrow_mut(&mut registry.validators, validator);
+        assert!(!info.is_active, EValidatorStillActive);
+        assert!(info.stake_amount >= withdrawal_amount, EInsufficientStakeForWithdrawal);
+        
+        // Update validator stake
+        info.stake_amount = info.stake_amount - withdrawal_amount;
+        
+        // Transfer stake back to validator
+        let withdrawn_balance = balance::split(&mut registry.total_stake, withdrawal_amount);
+        let withdrawn_coin = coin::from_balance(withdrawn_balance, ctx);
+        transfer::public_transfer(withdrawn_coin, validator);
+        
+        event::emit(ValidatorStakeWithdrawn {
+            validator,
+            withdrawn_amount: withdrawal_amount,  // Map parameter to struct field
+            remaining_stake: info.stake_amount,
+        });
+        
+        // If validator has no stake left, remove them
+        if (info.stake_amount == 0) {
+            table::remove(&mut registry.validators, validator);
+        };
+    }
+
     // Check if address is active validator
     public fun is_active_validator(registry: &ValidatorRegistry, validator: address): bool {
         if (table::contains(&registry.validators, validator)) {
@@ -97,6 +164,11 @@ module avs_on_chain::validator_registry {
         } else {
             false
         }
+    }
+
+    // Check if validator exists in registry (regardless of active status)
+    public fun validator_exists(registry: &ValidatorRegistry, validator: address): bool {
+        table::contains(&registry.validators, validator)
     }
 
     // Get validator stake amount
@@ -124,28 +196,34 @@ module avs_on_chain::validator_registry {
         info.reputation = (info.correct_validations * 100) / info.total_validations;
     }
 
-    // Slash validator stake
+    // MODIFIED: Slash validator stake and return slashed amount for insurance fund
     public fun slash_validator_stake(
         registry: &mut ValidatorRegistry,
         validator: address,
         slash_amount: u64,
-    ) {
+    ): Balance<SUI> {
         assert!(table::contains(&registry.validators, validator), EValidatorNotFound);
         let info = table::borrow_mut(&mut registry.validators, validator);
         
-        if (slash_amount >= info.stake_amount) {
+        let actual_slash = if (slash_amount >= info.stake_amount) {
+            let slashed = info.stake_amount;
             info.stake_amount = 0;
             info.is_active = false;
             registry.active_count = registry.active_count - 1;
+            slashed
         } else {
             info.stake_amount = info.stake_amount - slash_amount;
+            slash_amount
         };
 
         event::emit(ValidatorSlashed {
             validator,
-            slash_amount,
+            slash_amount: actual_slash,
             new_stake: info.stake_amount,
         });
+
+        // Return the slashed balance for insurance fund
+        balance::split(&mut registry.total_stake, actual_slash)
     }
 
     // Get all validators (simplified - in practice would need pagination)
@@ -153,6 +231,19 @@ module avs_on_chain::validator_registry {
         // In real implementation, iterate through table
         // For now, return empty vector
         vector::empty<address>()
+    }
+
+    // NEW: Get validator info for external queries
+    public fun get_validator_info(registry: &ValidatorRegistry, validator: address): (u64, u64, u64, u64, bool) {
+        assert!(table::contains(&registry.validators, validator), EValidatorNotFound);
+        let info = table::borrow(&registry.validators, validator);
+        (
+            info.stake_amount,
+            info.reputation,
+            info.total_validations,
+            info.correct_validations,
+            info.is_active
+        )
     }
 
     #[test_only]

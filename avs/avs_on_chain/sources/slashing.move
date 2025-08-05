@@ -36,6 +36,11 @@ module avs_on_chain::slashing {
         task_id: sui::object::ID,
     }
 
+    public struct InsuranceFundUpdated has copy, drop {
+        added_amount: u64,
+        new_total: u64,
+    }
+
     // Initialize slashing manager
     fun init(ctx: &mut TxContext) {
         let manager = SlashingManager {
@@ -49,16 +54,37 @@ module avs_on_chain::slashing {
         transfer::share_object(manager);
     }
 
+    // NEW: Initialize insurance fund during deployment
+    public entry fun initialize_insurance_fund(
+        manager: &mut SlashingManager,
+        initial_funds: Coin<SUI>,
+        _ctx: &mut TxContext
+    ) {
+        let amount = coin::value(&initial_funds);
+        balance::join(&mut manager.insurance_fund, coin::into_balance(initial_funds));
+        
+        event::emit(InsuranceFundUpdated {
+            added_amount: amount,
+            new_total: balance::value(&manager.insurance_fund),
+        });
+    }
+
     // Add funds to insurance fund
     public entry fun fund_insurance(
         manager: &mut SlashingManager,
         funds: Coin<SUI>,
         _ctx: &mut TxContext
     ) {
+        let amount = coin::value(&funds);
         balance::join(&mut manager.insurance_fund, coin::into_balance(funds));
+        
+        event::emit(InsuranceFundUpdated {
+            added_amount: amount,
+            new_total: balance::value(&manager.insurance_fund),
+        });
     }
 
-    // Execute rewards and slashing after consensus
+    // IMPROVED: Execute rewards and slashing after consensus with insurance fund integration
     public entry fun execute_slashing(
         manager: &mut SlashingManager,
         registry: &mut ValidatorRegistry,
@@ -78,8 +104,8 @@ module avs_on_chain::slashing {
                 // Correct vote - reward validator
                 reward_validator(manager, registry, validator, task_id, ctx);
             } else {
-                // Wrong vote - slash validator
-                slash_validator(manager, registry, validator, task_id, ctx);
+                // Wrong vote - slash validator and add to insurance fund
+                slash_validator_with_insurance(manager, registry, validator, task_id, ctx);
             };
             
             i = i + 1;
@@ -113,8 +139,8 @@ module avs_on_chain::slashing {
         };
     }
 
-    // Slash incorrect validator
-    fun slash_validator(
+    // NEW: Slash incorrect validator and add slashed amount to insurance fund
+    fun slash_validator_with_insurance(
         manager: &mut SlashingManager,
         registry: &mut ValidatorRegistry,
         validator: address,
@@ -123,8 +149,13 @@ module avs_on_chain::slashing {
     ) {
         let slash_amount = calculate_slash_amount(registry, validator, manager.slash_rate);
         
-        // Execute the slash
-        validator_registry::slash_validator_stake(registry, validator, slash_amount);
+        // Execute the slash and get the slashed balance
+        let slashed_balance = validator_registry::slash_validator_stake(registry, validator, slash_amount);
+        
+        // Add slashed amount to insurance fund
+        balance::join(&mut manager.insurance_fund, slashed_balance);
+        
+        // Update validator stats
         validator_registry::update_validator_stats(registry, validator, false);
         
         manager.total_slashed = manager.total_slashed + slash_amount;
@@ -133,6 +164,11 @@ module avs_on_chain::slashing {
             validator,
             slash_amount,
             task_id,
+        });
+        
+        event::emit(InsuranceFundUpdated {
+            added_amount: slash_amount,
+            new_total: balance::value(&manager.insurance_fund),
         });
     }
 
@@ -165,6 +201,20 @@ module avs_on_chain::slashing {
         manager.base_reward = new_reward;
     }
 
+    // NEW: Emergency withdraw from insurance fund (governance function)
+    public entry fun emergency_withdraw_insurance(
+        manager: &mut SlashingManager,
+        amount: u64,
+        recipient: address,
+        ctx: &mut TxContext
+    ) {
+        assert!(balance::value(&manager.insurance_fund) >= amount, EInsufficientFunds);
+        
+        let withdrawn = balance::split(&mut manager.insurance_fund, amount);
+        let coin = coin::from_balance(withdrawn, ctx);
+        transfer::public_transfer(coin, recipient);
+    }
+
     // Getters
     public fun get_insurance_fund_balance(manager: &SlashingManager): u64 {
         balance::value(&manager.insurance_fund)
@@ -176,5 +226,13 @@ module avs_on_chain::slashing {
 
     public fun get_base_reward(manager: &SlashingManager): u64 {
         manager.base_reward
+    }
+
+    public fun get_total_rewards_paid(manager: &SlashingManager): u64 {
+        manager.total_rewards_paid
+    }
+
+    public fun get_total_slashed(manager: &SlashingManager): u64 {
+        manager.total_slashed
     }
 }

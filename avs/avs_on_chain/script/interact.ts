@@ -6,24 +6,34 @@ import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { fromB64 } from '@mysten/sui.js/utils';
 
 // Configuration
-const PACKAGE_ID = "0x09186c4cd464d39bfd3a10252854eced3e730609bf9b5ab3843dde34b1ec5f27"; // Replace with your deployed package ID
+const PACKAGE_ID = "0xbfa230cd6c7790d7f28f46ba6fd5dba730eef31c56f28a4cef494e4807e57686";
+const REGISTRY_ID = "0x60c2c70b956e8c47d683cc8ab229043c21337a9f0261ce839e3742abc45b32b5";
+const SLASHING_MANAGER_ID = "0x34b5e87a6f6852a5ba07a36a3e1d55f2efc0fb97b582bcff81640b125a6dda4e";
+const PRIVATE_KEY_1 = "suiprivkey1qqedr5y058s9z2qy53kf9nql77c4a73h4mnxygl8hrqlf4f904amg6wzvh9";
+const PRIVATE_KEY_2 = "suiprivkey1qrs7dm44uc7lvnff69wd8zfc6p3az2g07zm4e6zjqjaxc7n6fqyac9nhuzy";
+const PRIVATE_KEY_3 = "suiprivkey1qq669pg0f36kp6axxu8cp9rlrg87matt75qec7vkragmkrmkda572t9fcdj";
 const RPC_URL = "https://fullnode.testnet.sui.io:443";
 
 class AVSInteraction {
     private client: SuiClient;
     private keypair: Ed25519Keypair;
-    
-    constructor() {
+
+    constructor(privateKey?: string) {
         this.client = new SuiClient({ url: RPC_URL });
-        
-        const privateKey = "suiprivkey1qqedr5y058s9z2qy53kf9nql77c4a73h4mnxygl8hrqlf4f904amg6wzvh9";
-        this.loadKeypair(privateKey);
+
+        if (privateKey) {
+            // Use provided private key
+            this.loadKeypair(privateKey);
+        } else {
+            // Generate new keypair if no private key provided
+            this.keypair = Ed25519Keypair.generate();
+            console.log("Generated new address:", this.keypair.getPublicKey().toSuiAddress());
+        }
     }
 
     loadKeypair(privateKey: string) {
         try {
             if (privateKey.startsWith('suiprivkey1q')) {
-                // Use Sui's built-in decoder
                 const decoded = decodeSuiPrivateKey(privateKey);
                 this.keypair = Ed25519Keypair.fromSecretKey(decoded.secretKey);
             } else {
@@ -37,31 +47,47 @@ class AVSInteraction {
         }
     }
 
-    // 1. Get ValidatorRegistry object ID
-    async findValidatorRegistry(): Promise<string> {
-        const objects = await this.client.getOwnedObjects({
-            owner: this.keypair.getPublicKey().toSuiAddress(),
+    // Initialize insurance fund during deployment
+    async initializeInsuranceFund(slashingManagerId: string, amount: number = 100000000) {
+        console.log("Initializing insurance fund with:", amount);
+
+        const txb = new TransactionBlock();
+        const [fundCoin] = txb.splitCoins(txb.gas, [amount]); // 
+
+        txb.moveCall({
+            target: `${PACKAGE_ID}::slashing::initialize_insurance_fund`,
+            arguments: [
+                txb.object(slashingManagerId),
+                fundCoin,
+            ],
         });
 
-        // Look for ValidatorRegistry in shared objects
-        // In practice, you'd save this ID after deployment
-        console.log("Looking for ValidatorRegistry in objects...");
-        console.log("Objects:", objects.data);
-        
-        // For now, return a placeholder - you'll need to find the actual object ID
-        return "0x924a44659bc69a3eb7d818562d56b7520897a957ae1aa428d641fbe6ce021fe4"; // Replace with actual ValidatorRegistry object ID
+        try {
+            const result = await this.client.signAndExecuteTransactionBlock({
+                transactionBlock: txb,
+                signer: this.keypair,
+                options: {
+                    showEffects: true,
+                    showEvents: true,
+                },
+            });
+
+            console.log("✅ Insurance fund initialized!");
+            console.log("Transaction:", result.digest);
+            return result;
+        } catch (error) {
+            console.error("❌ Failed to initialize insurance fund:", error);
+            throw error;
+        }
     }
 
-    // 2. Register as Validator
-    async registerValidator(registryId: string, stakeAmount: number = 1000000000) { 
+    // Register as Validator
+    async registerValidator(registryId: string, stakeAmount: number = 10000000) {
         console.log("Registering validator with stake:", stakeAmount);
 
         const txb = new TransactionBlock();
-
-        // Split coins for staking (1 SUI = 1000000000 MIST)
         const [stakeCoin] = txb.splitCoins(txb.gas, [stakeAmount]);
 
-        // Call register_validator
         txb.moveCall({
             target: `${PACKAGE_ID}::validator_registry::register_validator`,
             arguments: [
@@ -91,39 +117,79 @@ class AVSInteraction {
         }
     }
 
-    // 3. Check if address is validator
-    async isActiveValidator(registryId: string, validatorAddress?: string): Promise<boolean> {
-        const address = validatorAddress || this.keypair.getPublicKey().toSuiAddress();
-        
+    // NEW: Deactivate validator
+    async deactivateValidator(registryId: string) {
+        console.log("Deactivating validator");
+
+        const txb = new TransactionBlock();
+
+        txb.moveCall({
+            target: `${PACKAGE_ID}::validator_registry::deactivate_validator`,
+            arguments: [
+                txb.object(registryId),
+            ],
+        });
+
         try {
-            const txb = new TransactionBlock();
-            
-            const [result] = txb.moveCall({
-                target: `${PACKAGE_ID}::validator_registry::is_active_validator`,
-                arguments: [
-                    txb.object(registryId),
-                    txb.pure(address),
-                ],
+            const result = await this.client.signAndExecuteTransactionBlock({
+                transactionBlock: txb,
+                signer: this.keypair,
+                options: {
+                    showEffects: true,
+                    showEvents: true,
+                },
             });
 
-            // This is a view function - in practice you'd need to execute and parse results
-            console.log("Checking validator status for:", address);
-            return true; // Placeholder
+            console.log("✅ Validator deactivated!");
+            console.log("Transaction:", result.digest);
+            return result;
         } catch (error) {
-            console.error("Error checking validator status:", error);
-            return false;
+            console.error("❌ Failed to deactivate validator:", error);
+            throw error;
         }
     }
 
-    // 4. Create Validation Task
+    // NEW: Withdraw stake
+    async withdrawStake(registryId: string, withdrawalAmount: number) {
+        console.log("Withdrawing stake:", withdrawalAmount);
+
+        const txb = new TransactionBlock();
+
+        txb.moveCall({
+            target: `${PACKAGE_ID}::validator_registry::withdraw_stake`,
+            arguments: [
+                txb.object(registryId),
+                txb.pure(withdrawalAmount),
+            ],
+        });
+
+        try {
+            const result = await this.client.signAndExecuteTransactionBlock({
+                transactionBlock: txb,
+                signer: this.keypair,
+                options: {
+                    showEffects: true,
+                    showEvents: true,
+                },
+            });
+
+            console.log("✅ Stake withdrawn!");
+            console.log("Transaction:", result.digest);
+            return result;
+        } catch (error) {
+            console.error("❌ Failed to withdraw stake:", error);
+            throw error;
+        }
+    }
+
+    // Create Validation Task (updated for transfer validation)
     async createValidationTask(
         agentId: string,
-        tradeData: {
+        transferData: {
             action: string;
-            amountIn: number;
-            amountOut: number;
-            assetPair: string;
-            price: number;
+            amount: number;
+            recipient: string;
+            sender: string;
             timestamp: number;
         },
         validators: string[]
@@ -136,12 +202,11 @@ class AVSInteraction {
             target: `${PACKAGE_ID}::validation_task::create_validation_task`,
             arguments: [
                 txb.pure(agentId),
-                txb.pure(tradeData.action),
-                txb.pure(tradeData.amountIn),
-                txb.pure(tradeData.amountOut),
-                txb.pure(tradeData.assetPair),
-                txb.pure(tradeData.price),
-                txb.pure(tradeData.timestamp),
+                txb.pure(transferData.action),
+                txb.pure(transferData.amount),
+                txb.pure(transferData.recipient),
+                txb.pure(transferData.sender),
+                txb.pure(transferData.timestamp),
                 txb.pure(validators),
             ],
         });
@@ -159,11 +224,10 @@ class AVSInteraction {
 
             console.log("✅ Created validation task!");
             console.log("Transaction:", result.digest);
-            
-            // Extract task ID from events or object changes
+
             const taskId = this.extractTaskIdFromResult(result);
             console.log("Task ID:", taskId);
-            
+
             return { result, taskId };
         } catch (error) {
             console.error("❌ Failed to create validation task:", error);
@@ -171,18 +235,47 @@ class AVSInteraction {
         }
     }
 
-    // 5. Submit Vote on Validation Task
-    async submitVote(taskId: string, vote: boolean, confidence: number = 85) {
-        console.log(`Voting ${vote ? "APPROVE" : "REJECT"} on task:`, taskId);
+    // NEW: Submit vote with proof validation (updated for transfer)
+    async submitVoteWithProof(
+        taskId: string,
+        vote: boolean,
+        confidence: number,
+        proofData: {
+            txHash: string;
+            amount: number;
+            blockNumber: number;
+        }
+    ) {
+        console.log(`Validating and voting ${vote ? "APPROVE" : "REJECT"} on task:`, taskId);
 
+        // Step 1: Validate the transaction proof off-chain
+        const validationResult = await this.validateTransactionProof(proofData);
+
+        if (!validationResult.isValid) {
+            console.log("❌ Transaction validation failed:", validationResult.reason);
+            vote = false; // Override to reject if proof is invalid
+        } else {
+            console.log("✅ Transaction validation passed");
+        }
+
+        // Step 2: Submit vote with proof on-chain
         const txb = new TransactionBlock();
 
+        // Convert hex string to bytes for tx hash
+        const txHashBytes = Array.from(
+            new TextEncoder().encode(proofData.txHash)
+        );
+
         txb.moveCall({
-            target: `${PACKAGE_ID}::validation_task::submit_vote`,
+            target: `${PACKAGE_ID}::validation_task::submit_vote_with_proof`,
             arguments: [
                 txb.object(taskId),
                 txb.pure(vote),
                 txb.pure(confidence),
+                txb.pure(txHashBytes),
+                txb.pure(proofData.amount),     // amount_in
+                txb.pure(0),                    // amount_out (set to 0 for transfers)
+                txb.pure(proofData.blockNumber),
             ],
         });
 
@@ -196,16 +289,68 @@ class AVSInteraction {
                 },
             });
 
-            console.log("✅ Vote submitted!");
+            console.log("✅ Vote with proof submitted!");
             console.log("Transaction:", result.digest);
             return result;
         } catch (error) {
-            console.error("❌ Failed to submit vote:", error);
+            console.error("❌ Failed to submit vote with proof:", error);
             throw error;
         }
     }
 
-    // 6. Check Consensus and Finalize
+    // NEW: Off-chain transaction proof validation (updated for transfer)
+    async validateTransactionProof(proofData: {
+        txHash: string;
+        amount: number;
+        blockNumber: number;
+    }): Promise<{ isValid: boolean; reason: string }> {
+        try {
+            console.log("🔍 Validating transaction proof for:", proofData.txHash);
+
+            // Fetch the actual transaction
+            const tx = await this.client.getTransactionBlock({
+                digest: proofData.txHash,
+                options: {
+                    showEvents: true,
+                    showEffects: true,
+                    showInput: true,
+                    showBalanceChanges: true,
+                }
+            });
+
+            if (!tx) {
+                return { isValid: false, reason: "Transaction not found" };
+            }
+
+            // Check block number matches
+            if (tx.checkpoint && parseInt(tx.checkpoint) !== proofData.blockNumber) {
+                return {
+                    isValid: false,
+                    reason: `Block number mismatch: expected ${proofData.blockNumber}, got ${tx.checkpoint}`
+                };
+            }
+
+            // Look for SUI transfer in balance changes
+            const balanceChanges = tx.balanceChanges || [];
+            const suiTransfer = balanceChanges.find(change =>
+                change.coinType === '0x2::sui::SUI' &&
+                Math.abs(parseInt(change.amount)) === proofData.amount
+            );
+
+            if (!suiTransfer) {
+                return { isValid: false, reason: "No SUI transfer found with matching amount" };
+            }
+
+            console.log("✅ Transaction proof validation successful");
+            return { isValid: true, reason: "Valid transfer transaction proof" };
+
+        } catch (error) {
+            console.error("Error during transaction validation:", error);
+            return { isValid: false, reason: `Validation error: ${error}` };
+        }
+    }
+
+    // Check Consensus (unchanged)
     async checkConsensus(taskId: string) {
         console.log("Checking consensus for task:", taskId);
 
@@ -238,7 +383,7 @@ class AVSInteraction {
         }
     }
 
-    // 7. Execute Slashing/Rewards
+    // Execute Slashing with improved insurance fund integration
     async executeSlashing(
         slashingManagerId: string,
         registryId: string,
@@ -271,6 +416,7 @@ class AVSInteraction {
 
             console.log("✅ Slashing executed!");
             console.log("Transaction:", result.digest);
+            console.log("Events:", result.events);
             return result;
         } catch (error) {
             console.error("❌ Failed to execute slashing:", error);
@@ -278,24 +424,22 @@ class AVSInteraction {
         }
     }
 
-    // Helper: Extract task ID from transaction result
+    // Helper: Extract task ID from transaction result (unchanged)
     private extractTaskIdFromResult(result: any): string | null {
         console.log("Looking for task ID in result...");
-        
-        // First, look in object changes for created ValidationTask
+
         if (result.objectChanges) {
             for (const change of result.objectChanges) {
                 console.log("Object change:", change);
-                if (change.type === 'created' && 
-                    change.objectType && 
+                if (change.type === 'created' &&
+                    change.objectType &&
                     change.objectType.includes('ValidationTask')) {
                     console.log("Found ValidationTask object:", change.objectId);
                     return change.objectId;
                 }
             }
         }
-        
-        // Then look in events
+
         if (result.events) {
             for (const event of result.events) {
                 console.log("Event:", event);
@@ -308,44 +452,21 @@ class AVSInteraction {
                 }
             }
         }
-        
-        // Log all object changes to debug
+
         console.log("All object changes:", JSON.stringify(result.objectChanges, null, 2));
         console.log("All events:", JSON.stringify(result.events, null, 2));
-        
-        return null;
-    }
 
-    async findValidationTaskObjects(): Promise<string[]> {
-        try {
-            // Get all objects owned by this address
-            const objects = await this.client.getOwnedObjects({
-                owner: this.getAddress(),
-                options: {
-                    showType: true,
-                    showContent: true,
-                }
-            });
-            
-            const validationTasks: string[] = [];
-            
-            for (const obj of objects.data) {
-                if (obj.data?.type?.includes('ValidationTask')) {
-                    validationTasks.push(obj.data.objectId);
-                    console.log("Found ValidationTask:", obj.data.objectId);
-                }
-            }
-            
-            return validationTasks;
-        } catch (error) {
-            console.error("Error finding ValidationTask objects:", error);
-            return [];
-        }
+        return null;
     }
 
     // Get address
     getAddress(): string {
         return this.keypair.getPublicKey().toSuiAddress();
+    }
+
+    // Get client
+    getClient(): SuiClient {
+        return this.client;
     }
 
     // Get balance
@@ -368,52 +489,252 @@ class AVSInteraction {
             console.error("❌ Faucet request failed:", error);
         }
     }
-}
 
-// Usage Example
-async function main() {
-    const avs = new AVSInteraction();
-    
-    console.log("Current address:", avs.getAddress());
-    console.log("Balance:", await avs.getBalance());
-    
-    // If balance is 0, get SUI first
-    const balance = await avs.getBalance();
-    if (balance === 0) {
-        console.log("❌ No SUI balance. Please:");
-        console.log("1. Use your existing wallet (update private key in code)");
-        console.log("2. Or get SUI from web faucet for address:", avs.getAddress());
-        return;
-    }
-    
-    const registryId = "0x924a44659bc69a3eb7d818562d56b7520897a957ae1aa428d641fbe6ce021fe4";
-    
-    try {
-        // Register as validator
-        await avs.registerValidator(registryId, 10000000); // 0.01 SUI stake
+    async getValidatorInfo(registryId: string, address: string) {
+        const txb = new TransactionBlock();
+        txb.moveCall({
+            target: `${PACKAGE_ID}::validator_registry::get_validator_info`,
+            arguments: [txb.object(registryId), txb.pure(address)],
+        });
+        const result = await this.client.devInspectTransactionBlock({
+            transactionBlock: txb,
+            sender: this.getAddress()
+        });
+
+        // Parse return values from byte arrays (little-endian u64)
+        const returnValues = result?.results?.[0]?.returnValues;
         
-        // Create a validation task
-        const tradeData = {
-            action: "BUY",
-            amountIn: 100000000,
-            amountOut: 200000000,
-            assetPair: "SUI/USDC",
-            price: 2000000,
-            timestamp: Date.now(),
+        const parseU64 = (bytes?: number[]): number => {
+            if (!bytes || bytes.length !== 8) return 0;
+            let result = 0;
+            for (let i = 0; i < 8; i++) {
+                result += bytes[i] * Math.pow(256, i);
+            }
+            return result;
         };
         
-        const validators = [avs.getAddress()];
+        const parseBool = (bytes?: number[]): boolean => {
+            return !!(bytes && bytes[0] === 1);
+        };
+
+        return {
+            stake_amount: parseU64(returnValues?.[0]?.[0]),
+            reputation: parseU64(returnValues?.[1]?.[0]),
+            total_validations: parseU64(returnValues?.[2]?.[0]),
+            correct_validations: parseU64(returnValues?.[3]?.[0]),
+            is_active: parseBool(returnValues?.[4]?.[0])
+        };
+    }
+
+    async getInsuranceFundBalance(slashingManagerId: string): Promise<number> {
+        const txb = new TransactionBlock();
+        txb.moveCall({
+            target: `${PACKAGE_ID}::slashing::get_insurance_fund_balance`,
+            arguments: [txb.object(slashingManagerId)],
+        });
+        const result = await this.client.devInspectTransactionBlock({
+            transactionBlock: txb,
+            sender: this.getAddress()
+        });
         
-        const { taskId } = await avs.createValidationTask("agent_123", tradeData, validators);
+        // Parse return value from byte array (little-endian u64)
+        const returnValue = result?.results?.[0]?.returnValues?.[0]?.[0];
         
-        console.log("🕐 Waiting 3 seconds for object to be available...");
+        const parseU64 = (bytes?: number[]): number => {
+            if (!bytes || bytes.length !== 8) return 0;
+            let result = 0;
+            for (let i = 0; i < 8; i++) {
+                result += bytes[i] * Math.pow(256, i);
+            }
+            return result;
+        };
+        
+        return parseU64(returnValue);
+    }
+
+    async isValidatorRegistered(registryId: string, address?: string): Promise<boolean> {
+        try {
+            const addr = address || this.getAddress();
+            const txb = new TransactionBlock();
+            txb.moveCall({
+                target: `${PACKAGE_ID}::validator_registry::validator_exists`,
+                arguments: [txb.object(registryId), txb.pure(addr)],
+            });
+            const result = await this.client.devInspectTransactionBlock({
+                transactionBlock: txb,
+                sender: this.getAddress()
+            });
+            return Boolean(result?.results?.[0]?.returnValues?.[0]?.[0] ?? false);
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // In your AVSInteraction class
+    async debugTaskState(taskId: string) {
+        try {
+            const task = await this.client.getObject({
+                id: taskId,
+                options: { showContent: true }
+            });
+            console.log("Task object content:", task);
+        } catch (error) {
+            console.error("Failed to get task object:", error);
+        }
+    }
+
+    async debugValidatorExists(registryId: string, address: string) {
+        try {
+            const isRegistered = await this.isValidatorRegistered(registryId, address);
+            console.log(`Validator ${address} is registered: ${isRegistered}`);
+
+            if (isRegistered) {
+                const info = await this.getValidatorInfo(registryId, address);
+                console.log(`Validator info:`, info);
+            }
+        } catch (error) {
+            console.error(`Error checking validator ${address}:`, error);
+        }
+    }
+}
+
+async function main() {
+    // Validator 1 uses existing private key
+    const validator1 = new AVSInteraction(PRIVATE_KEY_1);
+    const validator2 = new AVSInteraction(PRIVATE_KEY_2);
+    const validator3 = new AVSInteraction(PRIVATE_KEY_3);
+
+    console.log("\n--- Validator Addresses ---");
+    console.log("Validator 1 (admin):", validator1.getAddress());
+    console.log("Validator 2:", validator2.getAddress());
+    console.log("Validator 3:", validator3.getAddress());
+
+    // Make sure all validators have funds
+    for (const [i, validator] of [validator1, validator2, validator3].entries()) {
+        const balance = await validator.getBalance();
+        console.log(`\nValidator ${i + 1} balance:`, balance / 1000000000, "SUI");
+
+        if (balance < 50000000) { // Less than 0.05 SUI
+            console.log(`Requesting funds for validator ${i + 1}...`);
+            await validator.requestFaucet();
+            // Wait for faucet transaction
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+            // Check new balance
+            const newBalance = await validator.getBalance();
+            console.log(`New balance: ${newBalance / 1000000000} SUI`);
+        }
+    }
+
+    try {
+
+
+        // Initialize insurance fund using validator1 (admin)
+        // await validator1.initializeInsuranceFund(SLASHING_MANAGER_ID, 50000000); // 0.05 SUI
+
+        // Each validator needs to register themselves
+        console.log("\n--- Registering Validators ---");
+        for (const [i, validator] of [validator1, validator2, validator3].entries()) {
+            // Check balance before registration
+            const balance = await validator.getBalance();
+            if (balance < 30000000) { // Need at least 0.03 SUI (0.02 for stake + gas)
+                console.log(`Validator ${i + 1} needs more SUI. Current balance: ${balance / 1000000000} SUI`);
+                continue;
+            }
+
+            try {
+                console.log(`Attempting to register Validator ${i + 1}...`);
+                await validator.registerValidator(REGISTRY_ID, 20000000); // 0.02 SUI stake each
+                console.log(`✅ Validator ${i + 1} registered with ${20000000 / 1000000000} SUI`);
+            } catch (error: any) {
+                console.log(`✅ Validator ${i + 1} already registered (skipping)`);
+
+            }
+        }
+
+        // Create task (can be done by any validator, using validator1 here)
+        const mockTransferData = {
+            action: "TRANSFER",
+            amount: 100000000,  // 0.1 SUI
+            recipient: "0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be",
+            sender: "0x91d6de6ad4363ec6947bd621aedd2e0ded77cbd1b8607a46e237ebfd082697f5",
+            timestamp: Date.now(),
+        };
+
+        const validators = [
+            validator1.getAddress(),
+            validator2.getAddress(),
+            validator3.getAddress()
+        ];
+
+        console.log("\n--- Creating Validation Task ---");
+        const { taskId } = await validator1.createValidationTask("agent_123", mockTransferData, validators);
+        console.log("Task created:", taskId);
+
         await new Promise(resolve => setTimeout(resolve, 3000));
 
         if (taskId) {
-            await avs.submitVote(taskId, true, 95);
-            await avs.checkConsensus(taskId);
+            console.log("\n--- Validators Voting ---");
+
+            // Validator 1 votes APPROVE
+            await validator1.submitVoteWithProof(taskId, true, 95, {
+                txHash: "CfpHS6YXPAv8usJaKU68YUp12VMWWNpziSeQov66txtz",
+                amount: mockTransferData.amount,
+                blockNumber: 226486139
+            });
+            console.log("Validator 1 voted: APPROVE");
+
+            // Validator 2 votes APPROVE
+            await validator2.submitVoteWithProof(taskId, true, 90, {
+                txHash: "CfpHS6YXPAv8usJaKU68YUp12VMWWNpziSeQov66txtz",
+                amount: mockTransferData.amount,
+                blockNumber: 226486139
+            });
+            console.log("Validator 2 voted: APPROVE");
+
+            // Validator 3 votes REJECT (incorrect vote)
+            await validator3.submitVoteWithProof(taskId, false, 85, {
+                txHash: "CfpHS6YXPAv8usJaKU68YUp12VMWWNpziSeQov66txtz",
+                amount: mockTransferData.amount,
+                blockNumber: 226486139
+            });
+            console.log("Validator 3 voted: REJECT (incorrect)");
+
+            console.log("⏳ Waiting for all votes to be fully processed...");
+            await new Promise(resolve => setTimeout(resolve, 15000)); // 15 seconds
+
+            console.log("🔍 Checking task state before consensus...");
+            await validator1.debugTaskState(taskId);
+
+            console.log("\n--- Checking Consensus ---");
+            const consensusResult = await validator1.checkConsensus(taskId);
+
+            console.log("\n--- Debugging Validators Before Slashing ---");
+            for (const [i, validator] of [validator1, validator2, validator3].entries()) {
+                console.log(`\nChecking Validator ${i + 1}:`);
+                await validator1.debugValidatorExists(REGISTRY_ID, validator.getAddress());
+            }
+
+            console.log("\n--- Executing Slashing ---");
+            await validator1.executeSlashing(SLASHING_MANAGER_ID, REGISTRY_ID, taskId, true);
+
+            // Show final status of all validators
+            console.log("\n--- Final Validator Status ---");
+            for (const [i, validator] of [validator1, validator2, validator3].entries()) {
+                const info = await validator.getValidatorInfo(REGISTRY_ID, validator.getAddress());
+                console.log(`\nValidator ${i + 1}:`);
+                console.log(`  Address: ${validator.getAddress()}`);
+                console.log(`  Stake: ${info.stake_amount / 1000000000} SUI`);
+                console.log(`  Reputation: ${info.reputation}`);
+                console.log(`  Active: ${info.is_active}`);
+                console.log(`  Balance: ${(await validator.getBalance()) / 1000000000} SUI`);
+            }
+
+            // Check insurance fund balance
+            const fundBalance = await validator1.getInsuranceFundBalance(SLASHING_MANAGER_ID);
+            console.log("\nInsurance Fund Balance:", fundBalance / 1000000000, "SUI");
         }
-        
+
     } catch (error) {
         console.error("Error in main flow:", error);
     }

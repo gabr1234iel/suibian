@@ -7,7 +7,7 @@ module avs_on_chain::validation_task {
     use std::string::String;
     use std::vector;
     use std::option::{Self, Option};
-    use avs_on_chain::types::{Self, TradeData, ValidationVote};
+    use avs_on_chain::types::{Self, TradeData};
 
     // Errors
     const ENotAssignedValidator: u64 = 1;
@@ -15,13 +15,27 @@ module avs_on_chain::validation_task {
     const ETaskCompleted: u64 = 3;
     const ETaskExpired: u64 = 4;
     const EInvalidStatus: u64 = 5;
+    const EInvalidProof: u64 = 6;
+
+    // New: Enhanced validation vote with proof
+    public struct ValidationVoteWithProof has store, copy, drop {
+        validator: address,
+        vote: bool,
+        timestamp: u64,
+        confidence: u64,
+        // Proof data
+        verified_tx_hash: vector<u8>,
+        verified_amount_in: u64,
+        verified_amount_out: u64,
+        block_number: u64,
+    }
 
     public struct ValidationTask has key {
         id: UID,
         agent_id: String,
         trade_data: TradeData,
         assigned_validators: vector<address>,
-        votes: Table<address, ValidationVote>,
+        votes: Table<address, ValidationVoteWithProof>,
         status: u8,
         consensus_result: Option<bool>,
         created_at: u64,
@@ -37,10 +51,12 @@ module avs_on_chain::validation_task {
         deadline: u64,
     }
 
-    public struct VoteSubmitted has copy, drop {
+    public struct VoteWithProofSubmitted has copy, drop {
         task_id: ID,
         validator: address,
         vote: bool,
+        verified_tx_hash: vector<u8>,
+        verified_amounts: vector<u64>, // [amount_in, amount_out]
         timestamp: u64,
     }
 
@@ -51,26 +67,22 @@ module avs_on_chain::validation_task {
         approve_votes: u64,
     }
 
-    // Create validation task
+    // Create validation task (updated for transfer validation)
     public entry fun create_validation_task(
         agent_id: String,
-        // Instead of TradeData struct, pass individual fields
         action: String,
-        amount_in: u64,
-        amount_out: u64,
-        asset_pair: String,
-        price: u64,
+        amount: u64,
+        recipient: address,
+        sender: address,
         timestamp: u64,
         assigned_validators: vector<address>,
         ctx: &mut TxContext
     ): ID {
-        // Create TradeData inside the function
         let trade_data = types::new_trade_data(
             action,
-            amount_in,
-            amount_out,
-            asset_pair,
-            price,
+            amount,
+            recipient,
+            sender,
             timestamp,
             agent_id,
         );
@@ -84,7 +96,7 @@ module avs_on_chain::validation_task {
             status: types::pending(),
             consensus_result: option::none(),
             created_at: tx_context::epoch_timestamp_ms(ctx),
-            deadline: tx_context::epoch_timestamp_ms(ctx) + 300000, // 5 minutes
+            deadline: tx_context::epoch_timestamp_ms(ctx) + 300000,
             completed_at: option::none(),
         };
 
@@ -101,11 +113,16 @@ module avs_on_chain::validation_task {
         task_id
     }
 
-    // Submit vote (only assigned validators)
-    public entry fun submit_vote(
+    // NEW: Submit vote with transaction proof
+    public entry fun submit_vote_with_proof(
         task: &mut ValidationTask,
         vote: bool,
         confidence: u64,
+        // Proof fields
+        verified_tx_hash: vector<u8>,
+        verified_amount_in: u64,
+        verified_amount_out: u64,
+        block_number: u64,
         ctx: &mut TxContext
     ) {
         let validator = tx_context::sender(ctx);
@@ -120,13 +137,26 @@ module avs_on_chain::validation_task {
         assert!(task.status != types::completed(), ETaskCompleted);
         assert!(task.status != types::expired(), ETaskExpired);
 
-        // Create vote
-        let validation_vote = types::new_validation_vote(
+        // Basic proof validation - amounts should match if voting approve
+        if (vote) {
+            let expected_amount = types::get_amount(&task.trade_data);
+            // For transfer validation, we only care about the transfer amount
+            // verified_amount_in should match the transfer amount
+            assert!(verified_amount_in == expected_amount, EInvalidProof);
+            // Don't check verified_amount_out for simple transfers
+        };
+
+        // Create vote with proof
+        let validation_vote = ValidationVoteWithProof {
             validator,
             vote,
-            tx_context::epoch_timestamp_ms(ctx),
+            timestamp: tx_context::epoch_timestamp_ms(ctx),
             confidence,
-        );
+            verified_tx_hash,
+            verified_amount_in,
+            verified_amount_out,
+            block_number,
+        };
 
         // Record vote
         table::add(&mut task.votes, validator, validation_vote);
@@ -136,10 +166,12 @@ module avs_on_chain::validation_task {
             task.status = types::active();
         };
 
-        event::emit(VoteSubmitted {
+        event::emit(VoteWithProofSubmitted {
             task_id: object::uid_to_inner(&task.id),
             validator,
             vote,
+            verified_tx_hash,
+            verified_amounts: vector[verified_amount_in, verified_amount_out],
             timestamp: tx_context::epoch_timestamp_ms(ctx),
         });
     }
@@ -162,7 +194,7 @@ module avs_on_chain::validation_task {
             
             if (table::contains(&task.votes, validator)) {
                 let vote = table::borrow(&task.votes, validator);
-                if (types::get_vote(vote)) {
+                if (vote.vote) {
                     approve_count = approve_count + 1;
                 } else {
                     reject_count = reject_count + 1;
@@ -203,7 +235,14 @@ module avs_on_chain::validation_task {
     public fun get_validator_vote(task: &ValidationTask, validator: address): bool {
         assert!(table::contains(&task.votes, validator), ENotAssignedValidator);
         let vote = table::borrow(&task.votes, validator);
-        types::get_vote(vote)  // Use the getter function instead of direct access
+        vote.vote
+    }
+
+    // NEW: Get validator proof data
+    public fun get_validator_proof(task: &ValidationTask, validator: address): (vector<u8>, u64, u64) {
+        assert!(table::contains(&task.votes, validator), ENotAssignedValidator);
+        let vote = table::borrow(&task.votes, validator);
+        (vote.verified_tx_hash, vote.verified_amount_in, vote.verified_amount_out)
     }
 
     public fun get_task_id(task: &ValidationTask): ID {
