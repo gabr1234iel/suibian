@@ -1,59 +1,62 @@
-jiayi@LAPTOP-SESSTBMF:/mnt/c/Users/User/Documents/buidl/devmatch/suibian/backend/suibian_marketplace/script$ node create_subscribe_test.ts 
-(node:2404) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+jiayi@LAPTOP-SESSTBMF:/mnt/c/Users/User/Documents/buidl/devmatch/suibian/backend/suibian_marketplace/script$ node create_subscribe_test.ts
+(node:2466) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
 🚀 Starting contract interaction tests...
 
 💰 Initial Balances:
-Creator (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 1.2217 SUI
-User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 0.9817 SUI
-TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.0500 SUI
+Creator (0x91d6de6ad4363ec6947bd621aedd2e0ded77cbd1b8607a46e237ebfd082697f5): 1.5466 SUI
+User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 1.8454 SUI
+Unauthorized User (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 2.2295 SUI
+TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.1500 SUI
 
 📝 Test 1: Creator registering agent...
-Creator address: 0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf
-Creator balance before creating agent: 1.2217 SUI
+Creator address: 0x91d6de6ad4363ec6947bd621aedd2e0ded77cbd1b8607a46e237ebfd082697f5
+Creator balance before creating agent: 1.5466 SUI
 Signing and executing transaction...
-Transaction digest: 5ZhhaDdKZK5xPB2xG3uwAVi6wF6LxiCPeKDMaCRgjbcP
+Transaction digest: Fg12eiNAZzkhyTU2Jiyv5fCBWoDq6fywVW6DYU6boq2P
 🔍 All object changes:
-  - mutated: 0xe8e01c91c2ec3187ff00d11ed1c7c9d5f04de1b465737a9f00ce1fecac0df043 (0x2::coin::Coin<0x2::sui::SUI>)
-  - created: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091 (0x57443c6e8e396f4d99f5c6aa152e9e6ecbbf91cbc2cd14c04741130ab7106001::agent_registry::TradingAgent)
-  - deleted: 0x6d898c9af06bfb14c99d933a05c2037d166f1cf545d0e56d2dc53aa3dc89f135 (0x2::coin::Coin<0x2::sui::SUI>)
-✅ Agent object created: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091
+  - mutated: 0xa99c44b3d13d39ef026252f2dafa1280c289826d7a8d874499e3515a9e892ed9 (0x2::coin::Coin<0x2::sui::SUI>)
+  - created: 0xa89fe6075811877bf6ac56a37ef43827ea7f50ad3521c0ef46ff0df40373f730 (0x57443c6e8e396f4d99f5c6aa152e9e6ecbbf91cbc2cd14c04741130ab7106001::agent_registry::TradingAgent)
+  - deleted: 0xf1197c2b224ec2668a8a4e494632aaa6d7368e8465c439b846cbe05dc6f4a457 (0x2::coin::Coin<0x2::sui::SUI>)
+✅ Agent object created: 0xa89fe6075811877bf6ac56a37ef43827ea7f50ad3521c0ef46ff0df40373f730
 📋 Agent object type: 0x57443c6e8e396f4d99f5c6aa152e9e6ecbbf91cbc2cd14c04741130ab7106001::agent_registry::TradingAgent
-✅ Agent created successfully with ID: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091
+✅ Agent created successfully with ID: 0xa89fe6075811877bf6ac56a37ef43827ea7f50ad3521c0ef46ff0df40373f730
 💰 Balances after agent creation:
 ⏳ Waiting for balance updates to propagate...
-Creator (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 1.2186 SUI
-User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 0.9817 SUI
-TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.0500 SUI
+Creator (0x91d6de6ad4363ec6947bd621aedd2e0ded77cbd1b8607a46e237ebfd082697f5): 1.5436 SUI
+User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 1.8454 SUI
+Unauthorized User (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 2.2295 SUI
+TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.1500 SUI
 
 👤 Test 2: User subscribing to agent...
 User address: 0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be
-🎯 Attempting to subscribe to agent: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091
+🎯 Attempting to subscribe to agent: 0xa89fe6075811877bf6ac56a37ef43827ea7f50ad3521c0ef46ff0df40373f730
 ⏳ Waiting for agent object to be available...
-✅ Agent object verified: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091
+✅ Agent object verified: 0xa89fe6075811877bf6ac56a37ef43827ea7f50ad3521c0ef46ff0df40373f730
 📋 Agent object type: 0x57443c6e8e396f4d99f5c6aa152e9e6ecbbf91cbc2cd14c04741130ab7106001::agent_registry::TradingAgent
-User balance before subscription: 0.9817 SUI
+User balance before subscription: 1.8454 SUI
 🔧 Transaction details:
-  - Agent ID: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091
+  - Agent ID: 0xa89fe6075811877bf6ac56a37ef43827ea7f50ad3521c0ef46ff0df40373f730
   - SubscriptionManager ID: 0x8c637cccc86c28b2c0aac50f839e397dbdd15576977a8d52c9387183eea71219
   - Payment amount: 0.01 SUI (10_000_000 MIST)
 Signing and executing subscription transaction...
-Transaction digest: 6qh5Z8hvqdsPdZ77tb4dLNHxEps5TjhmdGirFVJnERFS
-Subscription object created: 0x14842ce37e720717b9e85d814d73240acfc20604f7a52e10969b05e5b6552ce1
-✅ User subscribed successfully with ID: 0x14842ce37e720717b9e85d814d73240acfc20604f7a52e10969b05e5b6552ce1
+Transaction digest: FF1rMWXEneA71JRDWXHLwhzXShrhWNCmnRKNZz5AnRLQ
+Subscription object created: 0x4844db0589efab827eccc2dc1d8431b240ca9e4cc3a6de741ebbcd4d81fa996d
+✅ User subscribed successfully with ID: 0x4844db0589efab827eccc2dc1d8431b240ca9e4cc3a6de741ebbcd4d81fa996d
 💰 Balances after subscription:
 ⏳ Waiting for balance updates to propagate...
-Creator (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 1.2286 SUI
-User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 0.9651 SUI
-TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.0500 SUI
+Creator (0x91d6de6ad4363ec6947bd621aedd2e0ded77cbd1b8607a46e237ebfd082697f5): 1.5536 SUI
+User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 1.8288 SUI
+Unauthorized User (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 2.2295 SUI
+TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.1500 SUI
 
 💰 Test 3: User depositing trading funds...
 User depositing trading funds...
-User balance before deposit: 0.9651 SUI
+User balance before deposit: 1.8288 SUI
 Signing and executing deposit transaction...
-Transaction digest: 2AKkHV5DV8AGkRuhvEySDARBrar45FkSzrz6Z7yPH7HZ
+Transaction digest: A6gVKcdERrViQzRg2T6Fw65cWGDGhkF2GgBHJVpgA5j8
 ✅ FundsDeposited event: {
-  agent_id: '0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091',
+  agent_id: '0xa89fe6075811877bf6ac56a37ef43827ea7f50ad3521c0ef46ff0df40373f730',
   amount: '50000000',
   subscriber: '0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be',
   tee_wallet_address: '0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092',
@@ -77,7 +80,29 @@ Balance changes: [
 ]
 ✅ Trading funds deposited successfully!
 ⏳ Waiting for balance updates to propagate...
+💰 Balances after deposit:
+Creator (0x91d6de6ad4363ec6947bd621aedd2e0ded77cbd1b8607a46e237ebfd082697f5): 1.5536 SUI
+User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 1.7768 SUI
+Unauthorized User (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 2.2295 SUI
+TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.2000 SUI
+
+🚫 Test 4: Unauthorized user attempting to deposit (should fail)...
+🚫 Unauthorized user address: 0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf
+Unauthorized user balance: 2.2295 SUI
+🔍 Attempting to deposit using someone else's subscription (should fail)...
+🚫 Attempting deposit with unauthorized user (should fail)...
+  - Agent ID: 0xa89fe6075811877bf6ac56a37ef43827ea7f50ad3521c0ef46ff0df40373f730
+  - SubscriptionManager ID: 0x8c637cccc86c28b2c0aac50f839e397dbdd15576977a8d52c9387183eea71219
+  - Subscription ID: 0x4844db0589efab827eccc2dc1d8431b240ca9e4cc3a6de741ebbcd4d81fa996d (belongs to authorized user)
+  - Deposit amount: 0.05 SUI
+🚫 Signing and executing unauthorized deposit transaction (should fail)...
+✅ SUCCESS: Unauthorized deposit correctly failed!
+🔒 Transaction aborted: MoveAbort(MoveLocation { module: ModuleId { address: 57443c6e8e396f4d99f5c6aa152e9e6ecbbf91cbc2cd14c04741130ab7106001, name: Identifier("subscription_manager") }, function: 2, instruction: 24, function_name: Some("deposit_trading_funds") }, 6) in command 1
+Transaction digest: BjF737Hxq5Bg6XZKwaqDSjUivReVqWKbtGhqjWUngfeq
+ℹ️ Transaction failed with Move abort (access control working)
+⏳ Waiting for balance updates to propagate...
 💰 Final balances:
-Creator (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 1.2286 SUI
-User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 0.9130 SUI
-TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.1000 SUI
+Creator (0x91d6de6ad4363ec6947bd621aedd2e0ded77cbd1b8607a46e237ebfd082697f5): 1.5536 SUI
+User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 1.7768 SUI
+Unauthorized User (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 2.2285 SUI
+TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.2000 SUI

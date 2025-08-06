@@ -12,7 +12,7 @@ const SUBSCRIPTION_MANAGER_ID = '0x8c637cccc86c28b2c0aac50f839e397dbdd15576977a8
 const client = new SuiClient({ url: getFullnodeUrl(NETWORK) });
 
 // Test wallets (you'll need to fund these with testnet SUI)
-const CREATOR_PRIVATE_KEY = "suiprivkey1qq669pg0f36kp6axxu8cp9rlrg87matt75qec7vkragmkrmkda572t9fcdj";
+const CREATOR_PRIVATE_KEY = "suiprivkey1qqedr5y058s9z2qy53kf9nql77c4a73h4mnxygl8hrqlf4f904amg6wzvh9";
 const creatorDecoded = decodeSuiPrivateKey(CREATOR_PRIVATE_KEY);
 const creatorKeypair = Ed25519Keypair.fromSecretKey(creatorDecoded.secretKey);
 
@@ -20,6 +20,11 @@ const creatorKeypair = Ed25519Keypair.fromSecretKey(creatorDecoded.secretKey);
 const USER_PRIVATE_KEY = "suiprivkey1qrs7dm44uc7lvnff69wd8zfc6p3az2g07zm4e6zjqjaxc7n6fqyac9nhuzy";
 const userDecoded = decodeSuiPrivateKey(USER_PRIVATE_KEY);
 const userKeypair = Ed25519Keypair.fromSecretKey(userDecoded.secretKey);
+
+// Unauthorized user wallet (not subscribed)
+const UNAUTHORIZED_USER_PRIVATE_KEY = "suiprivkey1qq669pg0f36kp6axxu8cp9rlrg87matt75qec7vkragmkrmkda572t9fcdj";
+const unauthorizedDecoded = decodeSuiPrivateKey(UNAUTHORIZED_USER_PRIVATE_KEY);
+const unauthorizedUserKeypair = Ed25519Keypair.fromSecretKey(unauthorizedDecoded.secretKey);
 
 // Mock TEE data (since TEE is not set up yet)
 const MOCK_TEE_PUBLIC_KEY = new Uint8Array(32).fill(1); // 32-byte mock public key
@@ -67,6 +72,18 @@ async function main() {
             console.log('💰 Test 3: User depositing trading funds...');
             await depositTradingFunds(agentId, subscriptionId);
             
+            // Wait for balance updates to propagate
+            console.log('⏳ Waiting for balance updates to propagate...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            console.log('💰 Balances after deposit:');
+            await checkBalances();
+            console.log();
+            
+            // Test 4: Unauthorized user tries to deposit (should fail)
+            console.log('🚫 Test 4: Unauthorized user attempting to deposit (should fail)...');
+            await testUnauthorizedDeposit(agentId, subscriptionId);
+
             // Wait for balance updates to propagate
             console.log('⏳ Waiting for balance updates to propagate...');
             await new Promise(resolve => setTimeout(resolve, 3000));
@@ -391,13 +408,108 @@ async function depositTradingFunds(agentId: string, subscriptionId: string): Pro
     }
 }
 
+// Test unauthorized user trying to deposit funds (should fail)
+async function testUnauthorizedDeposit(agentId: string, subscriptionId: string): Promise<void> {
+    try {
+        const unauthorizedUserAddress = unauthorizedUserKeypair.getPublicKey().toSuiAddress();
+        console.log(`🚫 Unauthorized user address: ${unauthorizedUserAddress}`);
+
+        // Check unauthorized user balance
+        const balance = await client.getBalance({ owner: unauthorizedUserAddress });
+        console.log(`Unauthorized user balance: ${formatSuiAmount(balance.totalBalance)} SUI`);
+
+        if (BigInt(balance.totalBalance) < 70000000n) { // Less than 0.07 SUI
+            console.log('⚠️ Unauthorized user needs more SUI for testing (but this should fail anyway)');
+            return;
+        }
+
+        // Find SubscriptionManager object
+        const subscriptionManagerId = SUBSCRIPTION_MANAGER_ID;
+
+        console.log('🔍 Attempting to deposit using someone else\'s subscription (should fail)...');
+
+        // Create transaction block
+        const txb = new TransactionBlock();
+
+        // Split coin for trading deposit (0.05 SUI)
+        const depositCoin = txb.splitCoins(txb.gas, [txb.pure(50_000_000)]);
+
+        console.log(`🚫 Attempting deposit with unauthorized user (should fail)...`);
+        console.log(`  - Agent ID: ${agentId}`);
+        console.log(`  - SubscriptionManager ID: ${subscriptionManagerId}`);
+        console.log(`  - Subscription ID: ${subscriptionId} (belongs to authorized user)`);
+        console.log(`  - Deposit amount: 0.05 SUI`);
+
+        // Try to use the authorized user's subscription with unauthorized user's wallet
+        // This should fail because subscription.subscriber != unauthorized_user_address
+        txb.moveCall({
+            target: `${PACKAGE_ID}::subscription_manager::deposit_trading_funds`,
+            arguments: [
+                txb.object(agentId), // agent
+                txb.object(subscriptionManagerId), // manager
+                txb.object(subscriptionId), // subscription (belongs to different user!)
+                depositCoin, // deposit
+            ],
+        });
+
+        // Set gas budget
+        txb.setGasBudget(15000000); // 0.015 SUI
+
+        // Sign and execute transaction (should fail)
+        console.log('🚫 Signing and executing unauthorized deposit transaction (should fail)...');
+        const result = await client.signAndExecuteTransactionBlock({
+            signer: unauthorizedUserKeypair,
+            transactionBlock: txb,
+            options: {
+                showEffects: true,
+                showEvents: true,
+                showBalanceChanges: true,
+            },
+        });
+
+        // Check if transaction actually failed (Move abort)
+        if (result.effects?.status?.status === 'failure') {
+            console.log('✅ SUCCESS: Unauthorized deposit correctly failed!');
+            console.log(`🔒 Transaction aborted: ${result.effects?.status?.error || 'Move abort'}`);
+            console.log(`Transaction digest: ${result.digest}`);
+            
+            // Check if it's the expected error type
+            if (result.effects?.status?.error?.includes('ABORT_CODE_6') || 
+                result.effects?.status?.error?.includes('ENotSubscriber')) {
+                console.log('✅ Correct error: Subscription ownership verification working');
+            } else {
+                console.log('ℹ️ Transaction failed with Move abort (access control working)');
+            }
+        } else {
+            // This should not be reached if access control is working
+            console.log('❌ SECURITY ISSUE: Unauthorized deposit succeeded when it should have failed!');
+            console.log(`Transaction digest: ${result.digest}`);
+            console.log('Transaction effects:', result.effects);
+        }
+
+    } catch (error) {
+        // This is the expected outcome - the transaction should fail
+        console.log('✅ SUCCESS: Unauthorized deposit correctly failed!');
+        console.log(`🔒 Access control working: ${error.message || error}`);
+        
+        // Check if it's the expected error (subscription ownership mismatch)
+        if (error.message && (error.message.includes('ENotSubscriber') || error.message.includes('subscriber'))) {
+            console.log('✅ Correct error: Subscription ownership verification working');
+        } else {
+            console.log('ℹ️ Transaction failed (access control working, specific error details above)');
+        }
+    }
+}
+
 // Utility function to check balances
 async function checkBalances() {
     const creatorAddress = creatorKeypair.getPublicKey().toSuiAddress();
     const userAddress = userKeypair.getPublicKey().toSuiAddress();
+    const unauthorizedUserAddress = unauthorizedUserKeypair.getPublicKey().toSuiAddress();
 
     const creatorBalance = await client.getBalance({ owner: creatorAddress });
     const userBalance = await client.getBalance({ owner: userAddress });
+    const unauthorizedUserBalance = await client.getBalance({ owner: unauthorizedUserAddress });
     
     let teeBalance;
     try {
@@ -409,6 +521,7 @@ async function checkBalances() {
 
     console.log(`Creator (${creatorAddress}): ${formatSuiAmount(creatorBalance.totalBalance)} SUI`);
     console.log(`User (${userAddress}): ${formatSuiAmount(userBalance.totalBalance)} SUI`);
+    console.log(`Unauthorized User (${unauthorizedUserAddress}): ${formatSuiAmount(unauthorizedUserBalance.totalBalance)} SUI`);
     console.log(`TEE Wallet (${MOCK_TEE_WALLET_ADDRESS}): ${formatSuiAmount(teeBalance.totalBalance)} SUI`);
 }
 
