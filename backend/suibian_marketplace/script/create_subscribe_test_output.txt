@@ -1,0 +1,83 @@
+jiayi@LAPTOP-SESSTBMF:/mnt/c/Users/User/Documents/buidl/devmatch/suibian/backend/suibian_marketplace/script$ node create_subscribe_test.ts 
+(node:2404) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+🚀 Starting contract interaction tests...
+
+💰 Initial Balances:
+Creator (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 1.2217 SUI
+User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 0.9817 SUI
+TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.0500 SUI
+
+📝 Test 1: Creator registering agent...
+Creator address: 0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf
+Creator balance before creating agent: 1.2217 SUI
+Signing and executing transaction...
+Transaction digest: 5ZhhaDdKZK5xPB2xG3uwAVi6wF6LxiCPeKDMaCRgjbcP
+🔍 All object changes:
+  - mutated: 0xe8e01c91c2ec3187ff00d11ed1c7c9d5f04de1b465737a9f00ce1fecac0df043 (0x2::coin::Coin<0x2::sui::SUI>)
+  - created: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091 (0x57443c6e8e396f4d99f5c6aa152e9e6ecbbf91cbc2cd14c04741130ab7106001::agent_registry::TradingAgent)
+  - deleted: 0x6d898c9af06bfb14c99d933a05c2037d166f1cf545d0e56d2dc53aa3dc89f135 (0x2::coin::Coin<0x2::sui::SUI>)
+✅ Agent object created: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091
+📋 Agent object type: 0x57443c6e8e396f4d99f5c6aa152e9e6ecbbf91cbc2cd14c04741130ab7106001::agent_registry::TradingAgent
+✅ Agent created successfully with ID: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091
+💰 Balances after agent creation:
+⏳ Waiting for balance updates to propagate...
+Creator (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 1.2186 SUI
+User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 0.9817 SUI
+TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.0500 SUI
+
+👤 Test 2: User subscribing to agent...
+User address: 0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be
+🎯 Attempting to subscribe to agent: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091
+⏳ Waiting for agent object to be available...
+✅ Agent object verified: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091
+📋 Agent object type: 0x57443c6e8e396f4d99f5c6aa152e9e6ecbbf91cbc2cd14c04741130ab7106001::agent_registry::TradingAgent
+User balance before subscription: 0.9817 SUI
+🔧 Transaction details:
+  - Agent ID: 0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091
+  - SubscriptionManager ID: 0x8c637cccc86c28b2c0aac50f839e397dbdd15576977a8d52c9387183eea71219
+  - Payment amount: 0.01 SUI (10_000_000 MIST)
+Signing and executing subscription transaction...
+Transaction digest: 6qh5Z8hvqdsPdZ77tb4dLNHxEps5TjhmdGirFVJnERFS
+Subscription object created: 0x14842ce37e720717b9e85d814d73240acfc20604f7a52e10969b05e5b6552ce1
+✅ User subscribed successfully with ID: 0x14842ce37e720717b9e85d814d73240acfc20604f7a52e10969b05e5b6552ce1
+💰 Balances after subscription:
+⏳ Waiting for balance updates to propagate...
+Creator (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 1.2286 SUI
+User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 0.9651 SUI
+TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.0500 SUI
+
+💰 Test 3: User depositing trading funds...
+User depositing trading funds...
+User balance before deposit: 0.9651 SUI
+Signing and executing deposit transaction...
+Transaction digest: 2AKkHV5DV8AGkRuhvEySDARBrar45FkSzrz6Z7yPH7HZ
+✅ FundsDeposited event: {
+  agent_id: '0x717b70cf86ba884428ad8bba7ebc145ff23a5f142bce3b0a25014e5a55d6d091',
+  amount: '50000000',
+  subscriber: '0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be',
+  tee_wallet_address: '0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092',
+  timestamp: '1754428903180'
+}
+Balance changes: [
+  {
+    owner: {
+      AddressOwner: '0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be'
+    },
+    coinType: '0x2::sui::SUI',
+    amount: '-52019312'
+  },
+  {
+    owner: {
+      AddressOwner: '0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092'
+    },
+    coinType: '0x2::sui::SUI',
+    amount: '50000000'
+  }
+]
+✅ Trading funds deposited successfully!
+⏳ Waiting for balance updates to propagate...
+💰 Final balances:
+Creator (0xc98a19675d297a2a73298d63920155f45e6cee099ec6255609dfcf2f2ecd38cf): 1.2286 SUI
+User (0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be): 0.9130 SUI
+TEE Wallet (0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092): 0.1000 SUI

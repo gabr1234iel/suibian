@@ -1,0 +1,13 @@
+{
+    "name": "avs-interaction",
+    "version": "1.0.0",
+    "type": "module",
+    "dependencies": {
+      "@mysten/sui.js": "latest",
+      "typescript": "^5.0.0",
+      "ts-node": "^10.9.0"
+    },
+    "scripts": {
+      "start": "ts-node interact.ts"
+    }
+  }
