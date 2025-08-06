@@ -1,29 +1,41 @@
-build/*
-.trace
-.coverage*
+# Sui Move
+build/
+Move.lock
 
-# Sui/Move build artifacts
-/backend/suibian_marketplace/build/
+# Node/TypeScript
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
 
-# Frontend dependencies
-/frontend/node_modules/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 
-# Frontend build output
-/frontend/dist/
-/frontend/.next/
-/frontend/build/
-
-# Local environment variables
-# Ignore all .env files but not the example template
-.env*
-!.env.example
-
-# Log files
+# Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
 yarn-error.log*
 
-# IDE and OS specific files
-.vscode/
-.idea/
+# OS
 .DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+
+# Sui client config
+.sui/
+sui.log.*
+
+# Private keys and sensitive data
+*.key
+*.pem
+*.secret
