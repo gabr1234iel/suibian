@@ -44,6 +44,13 @@ export interface AppContextType {
   isBalanceLoading: boolean;
   isLoadingUser: boolean;
   nonce: string | null;
+  // zkLogin parameters needed for blockchain transactions
+  jwt: string | null;
+  randomness: string | null;
+  maxEpoch: number | null;
+  userSalt: string | null;
+  ephemeralKeypair: any | null; // Ed25519Keypair
+  zkProof: any | null;
   login: (credentialResponse: any) => Promise<void>;
   logout: () => void;
   theme: Theme;

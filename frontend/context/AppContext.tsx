@@ -15,7 +15,7 @@ import {
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
-const SUI_TESTNET_RPC_URL = "https://fullnode.testnet.sui.io";
+const SUI_DEVNET_RPC_URL = "https://fullnode.devnet.sui.io";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -83,6 +83,11 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [userGoogleId, setUserGoogleId] = useState<string | null>(null);
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
+  // zkLogin states for blockchain transactions
+  const [jwt, setJwt] = useState<string | null>(null);
+  const [userSalt, setUserSalt] = useState<string | null>(null);
+  const [ephemeralKeypair, setEphemeralKeypair] = useState<Ed25519Keypair | null>(null);
+  const [zkProof, setZkProof] = useState<any>(null);
 
   useEffect(() => {
     // Load theme from localStorage on component mount
@@ -106,8 +111,18 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   useEffect(() => {
     const setupZkLogin = async () => {
       try {
+        // Only run setup if we don't already have an ephemeral keypair
+        // This prevents overwriting existing keypairs that were used for zkProof generation
+        if (ephemeralKeypair) {
+          console.log('🔑 Ephemeral keypair already exists, skipping setup');
+          return;
+        }
+
+        console.log('🔑 Generating new ephemeral keypair for session...');
         const keyPair = new Ed25519Keypair();
-        const suiClient = new SuiClient({ url: SUI_TESTNET_RPC_URL });
+        setEphemeralKeypair(keyPair);
+        
+        const suiClient = new SuiClient({ url: SUI_DEVNET_RPC_URL });
         const { epoch } = await suiClient.getLatestSuiSystemState();
         const maxEpochValue = Number(epoch) + 2;
         setMaxEpoch(maxEpochValue);
@@ -128,7 +143,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     };
 
     setupZkLogin();
-  }, []);
+  }, []); // Empty dependency array - only run once on mount
 
   useEffect(() => {
     if (!userAddress) return;
@@ -136,7 +151,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     const getBalance = async () => {
       setIsBalanceLoading(true);
       try {
-        const suiClient = new SuiClient({ url: SUI_TESTNET_RPC_URL });
+        const suiClient = new SuiClient({ url: SUI_DEVNET_RPC_URL });
         const suiBalance = await suiClient.getBalance({ owner: userAddress });
         const balanceInSui = Number(suiBalance.totalBalance) / 1_000_000_000;
         setBalance(balanceInSui);
@@ -241,6 +256,91 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     }
   };
 
+  // Generate zkProof ONCE per session and cache it
+  const generateAndCacheZkProof = async (saltValue?: string, jwtValue?: string): Promise<void> => {
+    const currentSalt = saltValue || userSalt;
+    const currentJwt = jwtValue || jwt;
+    
+    // Debug: Log all parameters to see what's missing
+    console.log('zkLogin parameters check:', {
+      jwt: !!currentJwt,
+      ephemeralKeypair: !!ephemeralKeypair,
+      randomness: !!randomness,
+      currentSalt: !!currentSalt,
+      maxEpoch: !!maxEpoch
+    });
+    
+    if (!currentJwt || !ephemeralKeypair || !randomness || !currentSalt || !maxEpoch) {
+      console.error('Missing zkLogin parameters:', {
+        jwt: !currentJwt ? 'MISSING' : 'OK',
+        ephemeralKeypair: !ephemeralKeypair ? 'MISSING' : 'OK',
+        randomness: !randomness ? 'MISSING' : 'OK',
+        currentSalt: !currentSalt ? 'MISSING' : 'OK',
+        maxEpoch: !maxEpoch ? 'MISSING' : 'OK'
+      });
+      throw new Error('Missing required zkLogin parameters for proof generation');
+    }
+
+    try {
+      console.log('🔄 Generating zkProof for session (this may take a few seconds)...');
+      
+      // Verify JWT nonce matches current nonce before proceeding
+      const decodedJwt = jwtDecode<DecodedJwt>(currentJwt);
+      if (decodedJwt.nonce !== nonce) {
+        console.warn('JWT nonce mismatch detected:', {
+          jwtNonce: decodedJwt.nonce,
+          currentNonce: nonce
+        });
+        throw new Error('JWT nonce mismatch - please login again with fresh authentication');
+      }
+      
+      const { getExtendedEphemeralPublicKey } = await import('@mysten/zklogin');
+      console.log('zkProof generation using ephemeral key:', ephemeralKeypair.getPublicKey().toSuiAddress());
+      
+      const extendedEphemeralPublicKey = getExtendedEphemeralPublicKey(
+        ephemeralKeypair.getPublicKey()
+      );
+
+      // Call Mysten Labs proving service
+      const response = await fetch('https://prover-dev.mystenlabs.com/v1', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jwt: currentJwt,
+          extendedEphemeralPublicKey: extendedEphemeralPublicKey.toString(),
+          maxEpoch: maxEpoch.toString(),
+          jwtRandomness: randomness,
+          salt: currentSalt,
+          keyClaimName: "sub"
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Prover service failed: ${response.status} - ${errorText}`);
+      }
+
+            const proof = await response.json();
+      console.log('🔍 zkProof structure received:', {
+        keys: Object.keys(proof),
+        hasProofPoints: !!proof.proofPoints,
+        hasIssBase64Details: !!proof.issBase64Details,
+        proofPointsKeys: proof.proofPoints ? Object.keys(proof.proofPoints) : 'none',
+        issBase64DetailsKeys: proof.issBase64Details ? Object.keys(proof.issBase64Details) : 'none'
+      });
+      console.log('🔍 Full zkProof object:', JSON.stringify(proof, null, 2));
+      
+      setZkProof(proof);
+
+      console.log('✅ zkProof generated and cached for session!');
+    } catch (error) {
+      console.error('❌ Failed to generate zkProof:', error);
+      throw new Error(`zkLogin proof generation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
   const login = async (credentialResponse: any): Promise<void> => {
     if (!credentialResponse.credential || !nonce) {
       console.error("Login failed: No credential or nonce available.");
@@ -253,8 +353,12 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       const decodedJwt = jwtDecode<DecodedJwt>(credentialResponse.credential);
       const googleId = decodedJwt.sub;
       setUserGoogleId(googleId);
+      
+      // Store JWT for blockchain transactions
+      setJwt(credentialResponse.credential);
 
       console.log("Google ID:", googleId);
+      console.log("JWT stored for blockchain transactions");
 
       // Check if user exists in Firebase
       const existingUser = await getUserFromFirebase(googleId);
@@ -265,16 +369,30 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         setIsFirstTimeUser(false);
 
         const decryptedSalt = decryptSalt(existingUser.salt);
+        setUserSalt(decryptedSalt); // Store for blockchain transactions
 
-        const zkLoginUserAddress = computeZkLoginAddress({
-          claimName: "sub",
-          claimValue: googleId,
-          userSalt: BigInt(decryptedSalt),
-          iss: decodedJwt.iss,
-          aud: decodedJwt.aud,
-        });
+                        const zkLoginUserAddress = computeZkLoginAddress({
+                  claimName: "sub",
+                  claimValue: googleId,
+                  userSalt: BigInt(decryptedSalt),
+                  iss: decodedJwt.iss,
+                  aud: decodedJwt.aud,
+                });
 
-        setUserAddress(zkLoginUserAddress);
+                console.log('🏠 Computed zkLogin address with:', {
+                  claimName: "sub",
+                  claimValue: googleId,
+                  userSalt: decryptedSalt,
+                  iss: decodedJwt.iss,
+                  aud: decodedJwt.aud,
+                  computedAddress: zkLoginUserAddress
+                });
+
+                setUserAddress(zkLoginUserAddress);
+        
+        // Generate zkProof ONCE per session (expensive operation)
+        await generateAndCacheZkProof(decryptedSalt, credentialResponse.credential);
+        
         setIsLoggedIn(true);
 
         // Update last login time
@@ -290,6 +408,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         setIsFirstTimeUser(true);
 
         const newSalt = generateRandomness().toString();
+        setUserSalt(newSalt); // Store for blockchain transactions
 
         const zkLoginUserAddress = computeZkLoginAddress({
           claimName: "sub",
@@ -300,6 +419,10 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         });
 
         setUserAddress(zkLoginUserAddress);
+        
+        // Generate zkProof ONCE per session
+        await generateAndCacheZkProof(newSalt, credentialResponse.credential);
+        
         setIsLoggedIn(true);
 
         // Save new user to Firebase
@@ -330,6 +453,16 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         if (error instanceof Error) {
           console.error("Error message:", error.message);
           console.error("Error stack:", error.stack);
+          
+          // Handle nonce mismatch specifically
+          if (error.message.includes('JWT nonce mismatch')) {
+            alert(
+              `🔄 Authentication session expired. Please logout and login again to refresh your session.
+              
+This happens when the app generates new security keys but you're using an old login token.`
+            );
+            return;
+          }
         }
         alert(
           `Error during login: ${
@@ -349,11 +482,19 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     setBalance(null);
     setUserGoogleId(null);
     setIsFirstTimeUser(false);
+    // Clear zkLogin session data
+    setJwt(null);
+    setUserSalt(null);
+    setZkProof(null);
+    setEphemeralKeypair(null);
 
     // Regenerate randomness/nonce for the next session
     const setupNextLogin = async () => {
+      console.log('🔑 Logout: Generating new ephemeral keypair for next session...');
       const keyPair = new Ed25519Keypair();
-      const suiClient = new SuiClient({ url: SUI_TESTNET_RPC_URL });
+      setEphemeralKeypair(keyPair);
+      
+      const suiClient = new SuiClient({ url: SUI_DEVNET_RPC_URL });
       const { epoch } = await suiClient.getLatestSuiSystemState();
       const maxEpochValue = Number(epoch) + 2;
       setMaxEpoch(maxEpochValue);
@@ -383,6 +524,12 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     isBalanceLoading,
     isLoadingUser,
     nonce,
+    jwt,
+    randomness,
+    maxEpoch,
+    userSalt,
+    ephemeralKeypair,
+    zkProof,
     login,
     logout,
     theme,

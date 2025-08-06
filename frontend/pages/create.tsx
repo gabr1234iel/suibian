@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAppContext } from '../context/AppContext';
+import { useSuiTransactions } from '../hooks/useSuiTransactions';
 
 interface AgentFormData {
   name: string;
@@ -13,6 +14,7 @@ interface AgentFormData {
 
 const CreateAgentPage: React.FC = () => {
   const { isLoggedIn } = useAppContext();
+  const { createAgent, isTransacting, isReady } = useSuiTransactions();
   const router = useRouter();
   const [formData, setFormData] = useState<AgentFormData>({
     name: '',
@@ -23,7 +25,6 @@ const CreateAgentPage: React.FC = () => {
     tags: []
   });
   const [tagInput, setTagInput] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -31,6 +32,8 @@ const CreateAgentPage: React.FC = () => {
       router.push('/');
     }
   }, [isLoggedIn, router]);
+
+  // No initialization needed here anymore - it's handled by the hook
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>): void => {
     const { name, value } = e.target;
@@ -66,14 +69,62 @@ const CreateAgentPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
-    setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    if (!isReady) {
+      alert('Blockchain connection not ready. Please make sure you are logged in and try again.');
+      return;
+    }
 
-    // For now, just redirect to marketplace
-    router.push('/marketplace');
-    setIsSubmitting(false);
+    try {
+      console.log('🚀 Creating agent on blockchain...', {
+        name: formData.name,
+        description: formData.description,
+        fee: formData.fee,
+        riskLevel: formData.riskLevel,
+        tags: formData.tags
+      });
+
+      // Create agent using the hook
+      const result = await createAgent({
+        name: formData.name,
+        description: formData.description,
+        fee: formData.fee
+      });
+      
+      if (result.success) {
+        alert(`🎉 Agent "${formData.name}" created successfully on blockchain!
+
+✅ Details:
+- Agent ID: ${result.agentId || 'N/A'}
+- Transaction: ${result.transactionDigest}
+- Name: ${formData.name}
+- Description: ${formData.description}  
+- Fee: ${formData.fee}%
+
+Your agent is now live on the Sui devnet!`);
+        
+        router.push('/marketplace');
+      } else {
+        throw new Error(result.error || 'Agent creation failed');
+      }
+    } catch (error) {
+      console.error('❌ Failed to create agent:', error);
+      
+      let errorMessage = 'Unknown error occurred';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      alert(`❌ Failed to create agent: ${errorMessage}
+
+This could be due to:
+- Network connectivity issues
+- Insufficient SUI balance for gas fees
+- zkLogin proof generation failure
+- Smart contract execution error
+
+Please check the console for detailed error information and try again.`);
+    }
   };
 
   if (!isLoggedIn) {
@@ -86,9 +137,19 @@ const CreateAgentPage: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           Create Trading Agent
         </h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
           Share your trading strategy with the community and earn fees from subscribers
         </p>
+        
+        {/* Blockchain Status Indicator */}
+        <div className="flex items-center space-x-2 text-sm">
+          <div className={`w-2 h-2 rounded-full ${isReady ? 'bg-green-400 animate-pulse' : 'bg-yellow-400 animate-pulse'}`}></div>
+          <span className={`${isReady ? 'text-green-400' : 'text-yellow-400'}`}>
+            {isReady 
+              ? '✅ Blockchain Ready - Agent will be deployed to Sui Devnet' 
+              : '⏳ Waiting for complete login data...'}
+          </span>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
@@ -248,10 +309,14 @@ const CreateAgentPage: React.FC = () => {
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isTransacting || !isReady}
             className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isSubmitting ? 'Creating...' : 'Create Agent'}
+            {isTransacting 
+              ? 'Creating on Blockchain...' 
+              : !isReady 
+                ? 'Waiting for Blockchain...' 
+                : 'Create Agent on Sui'}
           </button>
         </div>
       </form>

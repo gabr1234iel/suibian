@@ -4,9 +4,9 @@ import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { decodeSuiPrivateKey } from '@mysten/sui.js/cryptography';
 
 // Configuration
-const NETWORK = 'testnet'; // or 'devnet', 'mainnet'
-const PACKAGE_ID = '0x57443c6e8e396f4d99f5c6aa152e9e6ecbbf91cbc2cd14c04741130ab7106001'; // Your deployed package ID
-const SUBSCRIPTION_MANAGER_ID = '0x8c637cccc86c28b2c0aac50f839e397dbdd15576977a8d52c9387183eea71219';
+const NETWORK = 'devnet'; // or 'devnet', 'mainnet'
+const PACKAGE_ID = '0x705da1cf5e87858f32787d79745381f2f523c8006794ef209169c7472afb09fa'; // Your deployed package ID
+const SUBSCRIPTION_MANAGER_ID = '0xc212a5ecf3febcc7e534e2f4cbcb722388bd7dd5974c78c12142612b63cae12a';
 
 // Initialize Sui client
 const client = new SuiClient({ url: getFullnodeUrl(NETWORK) });

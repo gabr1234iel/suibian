@@ -10,7 +10,7 @@ const SparklesIcon = ({ className }: { className?: string }) => (
 );
 
 const Header: React.FC = () => {
-  const { isLoggedIn, logout, theme, toggleTheme } = useAppContext();
+  const { isLoggedIn, logout, theme, toggleTheme, userAddress, balance } = useAppContext();
   const router = useRouter();
 
   const handleLogout = (): void => {
@@ -73,6 +73,26 @@ const Header: React.FC = () => {
 
           {/* Right side buttons */}
           <div className="flex items-center space-x-4">
+            {/* Wallet info - only show when logged in */}
+            {isLoggedIn && userAddress && (
+              <div className="hidden lg:flex items-center space-x-3 px-4 py-2 bg-dark-700/50 rounded-lg border border-gray-600">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span className="text-xs text-text-secondary">Wallet</span>
+                </div>
+                <div className="border-l border-gray-600 pl-3">
+                  <div className="text-xs text-white font-mono">
+                    {userAddress.slice(0, 6)}...{userAddress.slice(-4)}
+                  </div>
+                  {balance !== null && (
+                    <div className="text-xs text-gradient-blue">
+                      {balance.toFixed(3)} SUI
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Theme toggle button */}
             <button
               onClick={toggleTheme}
