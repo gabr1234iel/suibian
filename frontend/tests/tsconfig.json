@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2018",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "strict": true,
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["../*"]
+    }
+  },
+  "ts-node": {
+    "esm": false,
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  }
+}
