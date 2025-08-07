@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import { agents } from '../../data/agents';
 import { Agent } from '../../types';
+import NavBar from '../../components/NavBar';
 
 const AgentDetailPage: React.FC = () => {
   const router = useRouter();
@@ -47,7 +48,10 @@ const AgentDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-dark-900 text-white">
+      <NavBar />
+      
+      <div className="max-w-4xl mx-auto px-6 py-8 pt-24">
       {/* Back Button */}
       <button
         onClick={() => router.push('/marketplace')}
@@ -166,6 +170,7 @@ const AgentDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

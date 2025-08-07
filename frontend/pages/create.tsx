@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/router";
-import { useAppContext } from "../context/AppContext";
-import { useSuiTransactions } from "../hooks/useSuiTransactions";
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useAppContext } from '../context/AppContext';
+import { useSuiTransactions } from '../hooks/useSuiTransactions';
+import NavBar from '../components/NavBar';
 
 interface AgentFormData {
   name: string;
@@ -26,7 +27,6 @@ const CreateAgentPage: React.FC = () => {
   });
   const [tagInput, setTagInput] = useState<string>("");
 
-  // Redirect if not logged in
   useEffect(() => {
     if (!isLoggedIn) {
       router.push("/");
@@ -138,11 +138,14 @@ Please check the console for detailed error information and try again.`);
   };
 
   if (!isLoggedIn) {
-    return null; // Will redirect in useEffect
+    return null;
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-dark-900 text-white">
+      <NavBar />
+      
+      <div className="max-w-4xl mx-auto px-6 py-8 pt-24">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           Create Trading Agent
@@ -170,7 +173,6 @@ Please check the console for detailed error information and try again.`);
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Basic Information */}
         <div className="bg-white dark:bg-dark-800 rounded-xl shadow-lg border border-gray-200 dark:border-dark-700 p-8">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
             Basic Information
@@ -281,7 +283,6 @@ Please check the console for detailed error information and try again.`);
           </div>
         </div>
 
-        {/* Tags */}
         <div className="bg-white dark:bg-dark-800 rounded-xl shadow-lg border border-gray-200 dark:border-dark-700 p-8">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
             Tags
@@ -333,7 +334,6 @@ Please check the console for detailed error information and try again.`);
           </div>
         </div>
 
-        {/* Submit */}
         <div className="flex justify-end space-x-4">
           <button
             type="button"
@@ -355,6 +355,7 @@ Please check the console for detailed error information and try again.`);
           </button>
         </div>
       </form>
+      </div>
     </div>
   );
 };
