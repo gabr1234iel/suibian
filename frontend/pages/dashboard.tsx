@@ -15,6 +15,7 @@ import {
   Zap
 } from 'lucide-react';
 
+
 const DashboardPage: React.FC = () => {
   const { isLoggedIn } = useAppContext();
   const router = useRouter();
@@ -22,7 +23,7 @@ const DashboardPage: React.FC = () => {
   // Redirect if not logged in
   useEffect(() => {
     if (!isLoggedIn) {
-      router.push('/');
+      router.push("/");
     }
   }, [isLoggedIn, router]);
 
@@ -299,7 +300,7 @@ const DashboardPage: React.FC = () => {
                 </motion.div>
               ))}
             </motion.div>
-
+            
             {/* CTA Button */}
             <motion.div 
               className="mt-12 text-center"

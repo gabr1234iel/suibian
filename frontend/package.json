@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@mysten/bcs": "^1.7.0",
+    "@mysten/seal": "^0.4.20",
     "@mysten/sui": "^1.37.1",
+    "@mysten/walrus": "^0.6.0",
     "@mysten/zklogin": "^0.8.1",
     "@react-oauth/google": "^0.12.2",
     "@splinetool/react-spline": "^4.1.0",

@@ -18,9 +18,10 @@ const SparklesIcon = ({ className }: { className?: string }) => (
 );
 
 const LoginPage: React.FC = () => {
-  const { isLoggedIn, login, nonce, isLoadingUser, userAddress, isFirstTimeUser, balance, isBalanceLoading, logout } = useAppContext();
+  const { isLoggedIn, login, nonce, isLoadingUser, userAddress, isFirstTimeUser, balance, isBalanceLoading, logout, isZkLoginReady, initializeZkLoginSession } = useAppContext();
   const router = useRouter();
   const [showLoading, setShowLoading] = useState(true);
+  const [isInitializingLogin, setIsInitializingLogin] = useState(false);
 
   // Show loading screen for 2.5 seconds
   useEffect(() => {
@@ -34,6 +35,21 @@ const LoginPage: React.FC = () => {
   const handleGoogleLoginSuccess = async (credentialResponse: CredentialResponse) => {
     await login(credentialResponse);
     router.push('/marketplace');
+  };
+
+  const handleStartLogin = async () => {
+    setIsInitializingLogin(true);
+    try {
+      const result = await initializeZkLoginSession();
+      if (!result) {
+        alert('Failed to initialize login session. Please try again.');
+      }
+    } catch (error) {
+      console.error('Failed to initialize login session:', error);
+      alert('Failed to initialize login session. Please try again.');
+    } finally {
+      setIsInitializingLogin(false);
+    }
   };
 
   // Redirect if already logged in
@@ -129,6 +145,32 @@ const LoginPage: React.FC = () => {
                   </div>
                 )}
                 
+                {!nonce && !isLoadingUser && !isInitializingLogin && (
+                  <div className="mb-6">
+                    <div className="relative group">
+                      <div className="absolute -inset-1 bg-gradient-to-r from-gradient-blue to-gradient-purple rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
+                      <div className="relative">
+                        <button
+                          onClick={handleStartLogin}
+                          className="w-full px-6 py-3 bg-gradient-to-r from-gradient-blue to-gradient-purple text-white font-medium rounded-xl hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
+                        >
+                          <SparklesIcon className="w-5 h-5" />
+                          Start zkLogin Session
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isInitializingLogin && (
+                  <div className="mb-6 text-center">
+                    <div className="flex items-center justify-center gap-2 text-gradient-blue">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gradient-blue"></div>
+                      Initializing secure session...
+                    </div>
+                  </div>
+                )}
+
                 {nonce && !isLoadingUser && (
                   <div className="mb-6">
                     <div className="relative group">
