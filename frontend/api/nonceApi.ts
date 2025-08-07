@@ -1,16 +1,16 @@
 import { WalrusClient, WalrusFile } from "@mysten/walrus";
 import { SealClient, getAllowlistedKeyServers } from "@mysten/seal";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { Transaction } from "@mysten/sui/transactions";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { fromHex, toHex } from "@mysten/sui/utils";
-import crypto from "crypto";
 
 // Configuration
 const SUI_RPC_URL = getFullnodeUrl("testnet");
 
-// Your wallet address with WAL tokens
-const WALLET_ADDRESS =
-  "0x0c92849ffc05b564fd93b5046ff294f5191972f065ceb802207d72621bfc5b98";
+// Hardcoded policy ID (object ID) for testing purposes
+const HARDCODED_POLICY_ID =
+  "0xd6bf94d79547c1a98d7f0b7cd81f8c535bd2fb41f54dd1229e0414b1bfdbfb34";
 
 // Production configuration
 const STORAGE_EPOCHS = 5; // How long to store data in Walrus (in epochs)
@@ -29,6 +29,62 @@ let suiClient: SuiClient | null = null;
 // In-memory blob ID mapping for development/testing
 // In production, you'd use a proper database
 const blobIdMapping = new Map<string, string>();
+
+// Your wallet address with WAL tokens
+const WALLET_ADDRESS =
+  "0x0c92849ffc05b564fd93b5046ff294f5191972f065ceb802207d72621bfc5b98";
+
+// Add your wallet's private key (keep this secure!)
+const FUNDED_WALLET_PRIVATE_KEY =
+  "suiprivkey1qpme620v2mt7zpztgt79zqq5yj5as5sggqdfpzx5vl8tkxdmx55quv5uctf"; // Your actual private key here
+// OR use environment variable for security:
+// const FUNDED_WALLET_PRIVATE_KEY = process.env.FUNDED_WALLET_PRIVATE_KEY;
+
+// Create funded keypair
+let fundedKeypair: Ed25519Keypair | null = null;
+
+function getFundedKeypair(): Ed25519Keypair {
+  if (!fundedKeypair) {
+    if (!FUNDED_WALLET_PRIVATE_KEY) {
+      throw new Error("Funded wallet private key not configured");
+    }
+
+    try {
+      // Handle Sui private key format (suiprivkey1...)
+      if (FUNDED_WALLET_PRIVATE_KEY.startsWith("suiprivkey1")) {
+        // Use fromSecretKey with the bech32 string directly
+        fundedKeypair = Ed25519Keypair.fromSecretKey(FUNDED_WALLET_PRIVATE_KEY);
+      } else if (FUNDED_WALLET_PRIVATE_KEY.startsWith("0x")) {
+        // Handle hex format
+        fundedKeypair = Ed25519Keypair.fromSecretKey(
+          fromHex(FUNDED_WALLET_PRIVATE_KEY)
+        );
+      } else {
+        // Try as base64
+        fundedKeypair = Ed25519Keypair.fromSecretKey(FUNDED_WALLET_PRIVATE_KEY);
+      }
+
+      // Verify the address matches
+      const derivedAddress = fundedKeypair.getPublicKey().toSuiAddress();
+      console.log(`🔑 Funded keypair address: ${derivedAddress}`);
+      console.log(`🔑 Expected address: ${WALLET_ADDRESS}`);
+
+      if (derivedAddress !== WALLET_ADDRESS) {
+        console.warn(
+          "⚠️  Derived address doesn't match expected wallet address!"
+        );
+      }
+    } catch (error) {
+      console.error("Error creating funded keypair:", error);
+      throw new Error(
+        `Failed to create funded keypair: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+  return fundedKeypair;
+}
 
 /**
  * Initialize the Walrus and Seal clients
@@ -81,18 +137,18 @@ async function initializeClients() {
  * Generate a cryptographically secure 16-byte salt
  */
 function generateSalt(): string {
-  // Generate 16 random bytes and return as hex string (for zkLogin compatibility)
-  const randomBytes = crypto.randomBytes(16);
+  // Use Web Crypto API instead of Node.js crypto
+  const randomBytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+
+  // Convert to hex string first
+  const hexString = Array.from(randomBytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 
   // Convert to BigInt decimal string (what zkLogin prover expects)
-  const hexString = "0x" + randomBytes.toString("hex");
-  const bigIntValue = BigInt(hexString);
+  const bigIntValue = BigInt("0x" + hexString);
 
-  console.log(
-    `🧂 Generated salt: ${randomBytes.toString(
-      "hex"
-    )} -> ${bigIntValue.toString()}`
-  );
+  console.log(`🧂 Generated salt: ${hexString} -> ${bigIntValue.toString()}`);
 
   // Return as decimal string for zkLogin compatibility
   return bigIntValue.toString();
@@ -101,11 +157,17 @@ function generateSalt(): string {
 /**
  * Create a unique storage key for Google ID data
  */
-function createStorageKey(googleId: string): string {
-  return `google_id_${crypto
-    .createHash("sha256")
-    .update(googleId)
-    .digest("hex")}`;
+async function createStorageKey(googleId: string): Promise<string> {
+  // Use Web Crypto API for hashing
+  const encoder = new TextEncoder();
+  const data = encoder.encode(googleId);
+  const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  return `google_id_${hashHex}`;
 }
 
 /**
@@ -143,7 +205,8 @@ async function encryptWithSeal(
   }
 
   try {
-    const nonce = crypto.getRandomValues(new Uint8Array(5));
+    // Use Web Crypto API instead of Node.js crypto
+    const nonce = globalThis.crypto.getRandomValues(new Uint8Array(5));
     const policyObjectBytes = fromHex(policyId);
 
     // Combine arrays without spreading for better compatibility
@@ -226,12 +289,24 @@ async function storeInWalrus(
       `Storing encrypted data in Walrus for identifier: ${identifier}`
     );
 
-    // Write the file to Walrus
+    // // Write the file to Walrus
+    // const results = await walrusClient.writeFiles({
+    //   files: [file],
+    //   epochs: STORAGE_EPOCHS,
+    //   deletable: true, // Allow deletion if needed
+    //   signer,
+    // });
+
+    // Use YOUR funded wallet for payment instead of user's ephemeral key
+    const paymentSigner = getFundedKeypair();
+    console.log(`💰 Using funded wallet for payment: ${WALLET_ADDRESS}`);
+
+    // Write the file to Walrus using YOUR funded wallet
     const results = await walrusClient.writeFiles({
       files: [file],
       epochs: STORAGE_EPOCHS,
-      deletable: true, // Allow deletion if needed
-      signer,
+      deletable: true,
+      signer: paymentSigner, // ← Your funded wallet pays WAL tokens
     });
 
     if (results.length === 0) {
@@ -292,8 +367,7 @@ async function retrieveFromWalrus(blobId: string): Promise<Uint8Array | null> {
  */
 export async function getOrCreateSaltForGoogleId(
   googleId: string,
-  signer?: Ed25519Keypair,
-  policyId?: string
+  signer?: Ed25519Keypair
 ): Promise<string> {
   if (!googleId || typeof googleId !== "string") {
     throw new Error("Invalid Google ID provided");
@@ -307,11 +381,11 @@ export async function getOrCreateSaltForGoogleId(
     console.log(`Generated storage key: ${storageKey}`);
 
     // Try production storage first if signer and policyId are provided
-    if (signer && policyId && packageId) {
+    if (signer && packageId) {
       console.log("Using production storage (Walrus + Seal)");
 
       // Check if we have a blob ID mapping for this Google ID
-      const existingBlobId = blobIdMapping.get(storageKey);
+      const existingBlobId = blobIdMapping.get(await storageKey);
 
       if (existingBlobId) {
         console.log(`Found existing blob ID: ${existingBlobId}`);
@@ -327,7 +401,7 @@ export async function getOrCreateSaltForGoogleId(
 
             // Since we don't have a proper session key management system yet,
             // let's fall back to checking memory storage
-            const memoryData = retrieveFromMemory(storageKey);
+            const memoryData = retrieveFromMemory(await storageKey);
             if (memoryData) {
               const parsedData = JSON.parse(memoryData);
               if (parsedData.googleId === googleId && parsedData.salt) {
@@ -340,12 +414,12 @@ export async function getOrCreateSaltForGoogleId(
           console.error("Error retrieving from Walrus, falling back:", error);
         }
       }
-    } else if (signer && policyId) {
+    } else if (signer && HARDCODED_POLICY_ID) {
       console.log(
         "⚠️  Seal package ID not configured, using memory storage only"
       );
     } // Try to retrieve existing data from memory (fallback or development)
-    let existingData = retrieveFromMemory(storageKey);
+    let existingData = retrieveFromMemory(await storageKey);
 
     if (existingData) {
       console.log("Found existing data in memory");
@@ -374,26 +448,30 @@ export async function getOrCreateSaltForGoogleId(
     };
 
     // Store in memory (always as backup)
-    storeInMemory(storageKey, JSON.stringify(dataToStore));
+    storeInMemory(await storageKey, JSON.stringify(dataToStore));
     console.log(`Data stored in memory for key: ${storageKey}`);
 
     // Try production storage if available
-    if (signer && policyId && packageId) {
+    if (signer && HARDCODED_POLICY_ID && packageId) {
       try {
         console.log("Attempting to store in production (Walrus + Seal)");
 
         // Encrypt the data with Seal
         const encryptedData = await encryptWithSeal(
           JSON.stringify(dataToStore),
-          policyId,
+          HARDCODED_POLICY_ID,
           packageId
         );
 
         // Store encrypted data in Walrus
-        const blobId = await storeInWalrus(encryptedData, storageKey, signer);
+        const blobId = await storeInWalrus(
+          encryptedData,
+          await storageKey,
+          signer
+        );
 
         // Save the blob ID mapping
-        blobIdMapping.set(storageKey, blobId);
+        blobIdMapping.set(await storageKey, blobId);
 
         console.log(
           `Data successfully stored in production with blob ID: ${blobId}`
@@ -404,7 +482,7 @@ export async function getOrCreateSaltForGoogleId(
           error
         );
       }
-    } else if (signer && policyId) {
+    } else if (signer && HARDCODED_POLICY_ID) {
       console.log(
         "⚠️  Seal package ID not configured, using memory storage only"
       );
@@ -428,6 +506,11 @@ export async function getOrCreateSaltForGoogleId(
  */
 export function validateSalt(salt: string): boolean {
   try {
+    // Check for empty or invalid input first
+    if (!salt || salt.trim() === "") {
+      return false;
+    }
+
     // OLD CODE - expects hex format:
     // const buffer = Buffer.from(salt, "hex");
     // return buffer.length === 16;
@@ -460,7 +543,7 @@ export async function checkGoogleIdExists(googleId: string): Promise<boolean> {
     const storageKey = createStorageKey(googleId);
 
     // Check memory storage
-    const existingData = retrieveFromMemory(storageKey);
+    const existingData = retrieveFromMemory(await storageKey);
     if (existingData) {
       return true;
     }
@@ -486,7 +569,7 @@ export async function getSaltForGoogleId(
     const storageKey = createStorageKey(googleId);
 
     // Check memory storage
-    const existingData = retrieveFromMemory(storageKey);
+    const existingData = retrieveFromMemory(await storageKey);
     if (existingData) {
       const parsedData = JSON.parse(existingData);
       if (parsedData.googleId === googleId && parsedData.salt) {
@@ -596,7 +679,6 @@ export async function getEncryptedSalt(
     return null;
   }
 }
-
 /**
  * Production function: Create a Seal policy for encrypting salts
  * @param signer - Ed25519 keypair for signing the transaction
@@ -605,31 +687,108 @@ export async function getEncryptedSalt(
 export async function createSealPolicy(
   signer: Ed25519Keypair
 ): Promise<string | null> {
-  if (!sealClient || !packageId) {
+  if (!sealClient || !packageId || !suiClient) {
     console.log(
-      "⚠️  Seal client or package ID not available - cannot create policy"
+      "⚠️  Seal client, package ID, or SUI client not available - cannot create policy"
     );
     return null;
   }
 
   try {
-    // This is a simplified policy creation
-    // You may need to adjust based on your specific requirements
-    const policyId = crypto.randomBytes(32).toString("hex");
+    console.log("🔐 Creating Seal policy...");
 
-    console.log(`Created Seal policy with ID: ${policyId}`);
+    // Create a new transaction block
+    const txb = new Transaction();
 
-    // In a real implementation, you would create an actual Seal policy here
-    // using the Seal client's policy creation methods
+    // Create a Seal policy using your deployed Seal package
+    // This creates a policy that defines who can decrypt the data
+    const policyResult = txb.moveCall({
+      target: `${packageId}::seal::create_policy`,
+      arguments: [
+        // Add policy parameters based on your Seal package implementation
+        // This might include threshold, key servers, etc.
+        txb.pure.u8(SEAL_THRESHOLD), // threshold
+        // Add other required arguments based on your Seal package
+      ],
+    });
 
-    return `0x${policyId}`;
+    // Execute the transaction
+    const result = await suiClient.signAndExecuteTransaction({
+      transaction: txb,
+      signer,
+      options: {
+        showEffects: true,
+        showObjectChanges: true,
+      },
+    });
+
+    console.log("🔐 Policy creation transaction:", result.digest);
+
+    // Extract the policy ID from the created objects
+    const createdObjects = result.objectChanges?.filter(
+      (change) => change.type === "created"
+    );
+
+    if (!createdObjects || createdObjects.length === 0) {
+      throw new Error("No objects were created in the policy transaction");
+    }
+
+    // Find the policy object (this depends on your Seal package structure)
+    const policyObject = createdObjects.find(
+      (obj) => obj.type === "created" && obj.objectType?.includes("Policy")
+    );
+
+    if (!policyObject || policyObject.type !== "created") {
+      throw new Error("Policy object not found in transaction results");
+    }
+
+    const policyId = policyObject.objectId;
+    console.log(`✅ Seal policy created with ID: ${policyId}`);
+
+    return policyId;
   } catch (error) {
-    console.error("Error creating Seal policy:", error);
+    console.error("❌ Error creating Seal policy:", error);
     throw new Error(
       `Failed to create Seal policy: ${
         error instanceof Error ? error.message : "Unknown error"
       }`
     );
+  }
+}
+
+/**
+ * Utility function: Check if Seal package is properly deployed and accessible
+ */
+export async function validateSealPackage(): Promise<boolean> {
+  if (!suiClient || !packageId) {
+    console.log("⚠️  SUI client or package ID not available");
+    return false;
+  }
+
+  try {
+    console.log(`🔍 Validating Seal package: ${packageId}`);
+
+    // Get package info
+    const packageInfo = await suiClient.getObject({
+      id: packageId,
+      options: {
+        showContent: true,
+        showType: true,
+      },
+    });
+
+    if (!packageInfo.data) {
+      console.log("❌ Package not found");
+      return false;
+    }
+
+    console.log("✅ Seal package found and accessible");
+    console.log("Package details:", packageInfo.data);
+
+    return true;
+  } catch (error) {
+    console.error("❌ Error validating Seal package:", error);
+    return false;
   }
 }
 

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 import { AppContextType, Theme, DecodedJwt, UserData } from "../types";
 import { jwtDecode } from "jwt-decode";
 import { SuiClient } from "@mysten/sui/client";
@@ -10,7 +16,11 @@ import {
   generateNonce,
   computeZkLoginAddress,
 } from "@mysten/sui/zklogin";
-import { getOrCreateSaltForGoogleId } from "@/api/nonceApi";
+import {
+  createSealPolicy,
+  getOrCreateSaltForGoogleId,
+  validateSealPackage,
+} from "@/api/nonceApi";
 
 const SUI_DEVNET_RPC_URL = "https://fullnode.devnet.sui.io";
 
@@ -48,12 +58,17 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   const [ephemeralKeypair, setEphemeralKeypair] =
     useState<Ed25519Keypair | null>(null);
   const [zkProof, setZkProof] = useState<any>(null);
-  
+
   // Ref to prevent multiple zkLogin setups
   const zkLoginSetupCompleted = useRef<boolean>(false);
 
   // Helper to check if zkLogin session is fully initialized and ready
-  const isZkLoginReady = !!(ephemeralKeypair && nonce && randomness && maxEpoch);
+  const isZkLoginReady = !!(
+    ephemeralKeypair &&
+    nonce &&
+    randomness &&
+    maxEpoch
+  );
 
   useEffect(() => {
     // Load theme from localStorage on component mount
@@ -75,16 +90,21 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   }, [theme]);
 
   // Initialize zkLogin session (generate ephemeral keypair) - called when user wants to login
-  const initializeZkLoginSession = async (): Promise<{ nonce: string } | null> => {
+  const initializeZkLoginSession = async (): Promise<{
+    nonce: string;
+  } | null> => {
     try {
       // Prevent multiple initializations
       if (zkLoginSetupCompleted.current && ephemeralKeypair && nonce) {
-        console.log('🔑 zkLogin session already ready, using existing nonce:', nonce);
+        console.log(
+          "🔑 zkLogin session already ready, using existing nonce:",
+          nonce
+        );
         return { nonce };
       }
-      
-      console.log('🔑 Initializing fresh zkLogin session for login...');
-      
+
+      console.log("🔑 Initializing fresh zkLogin session for login...");
+
       // Clear any existing session data first
       setIsLoggedIn(false);
       setUserGoogleId(null);
@@ -92,9 +112,11 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       setJwt(null);
       setUserSalt(null);
       setZkProof(null);
-      
+
       // Generate fresh ephemeral keypair ONLY when user wants to login
-      console.log('🔑 Generating fresh ephemeral keypair for this login session...');
+      console.log(
+        "🔑 Generating fresh ephemeral keypair for this login session..."
+      );
       const keyPair = new Ed25519Keypair();
 
       const suiClient = new SuiClient({ url: SUI_DEVNET_RPC_URL });
@@ -109,19 +131,19 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         maxEpochValue,
         randomnessValue
       );
-      
+
       // Set all critical session data atomically
       setEphemeralKeypair(keyPair);
       setMaxEpoch(maxEpochValue);
       setRandomness(randomnessValue.toString());
       setNonce(nonceValue);
-      
+
       // Mark setup as completed to prevent re-runs
       zkLoginSetupCompleted.current = true;
-      
-      console.log('✅ zkLogin session initialized with nonce:', nonceValue);
-      console.log('🔒 This nonce is LOCKED for Google OAuth - will not change');
-      
+
+      console.log("✅ zkLogin session initialized with nonce:", nonceValue);
+      console.log("🔒 This nonce is LOCKED for Google OAuth - will not change");
+
       return { nonce: nonceValue };
     } catch (error) {
       console.error("Error initializing zkLogin session:", error);
@@ -226,13 +248,13 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       // Verify JWT nonce matches current nonce before proceeding
       const decodedJwt = jwtDecode<DecodedJwt>(currentJwt);
       if (decodedJwt.nonce !== nonce) {
-        console.warn('🚨 JWT nonce mismatch detected - session expired!', {
+        console.warn("🚨 JWT nonce mismatch detected - session expired!", {
           jwtNonce: decodedJwt.nonce,
           currentNonce: nonce,
         });
-        
+
         // Clear all session data and force re-login
-        console.log('🔄 Clearing session data and forcing re-login...');
+        console.log("🔄 Clearing session data and forcing re-login...");
         setIsLoggedIn(false);
         setUserGoogleId(null);
         setUserAddress(null);
@@ -240,9 +262,11 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         setUserSalt(null);
         setZkProof(null);
         setEphemeralKeypair(null);
-        
-        alert('Your session has expired. Please login again.');
-        throw new Error('Session expired - nonce mismatch detected. User has been logged out.');
+
+        alert("Your session has expired. Please login again.");
+        throw new Error(
+          "Session expired - nonce mismatch detected. User has been logged out."
+        );
       }
 
       const { getExtendedEphemeralPublicKey } = await import("@mysten/zklogin");
@@ -305,9 +329,49 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     }
   };
 
+  const createAndStoreSealPolicy = async (): Promise<string | null> => {
+    try {
+      if (!ephemeralKeypair) {
+        console.log("No ephemeral keypair available for policy creation");
+        return null;
+      }
+
+      // Check if we already have a stored policy ID
+      const existingPolicyId = localStorage.getItem("seal_policy_id");
+      if (existingPolicyId) {
+        console.log("Using existing Seal policy:", existingPolicyId);
+        return existingPolicyId;
+      }
+
+      // Validate that the Seal package is deployed correctly
+      const isValidPackage = await validateSealPackage();
+      if (!isValidPackage) {
+        console.log(
+          "Seal package validation failed - falling back to memory storage"
+        );
+        return null;
+      }
+
+      // Create a new policy
+      console.log("Creating new Seal policy...");
+      const policyId = await createSealPolicy(ephemeralKeypair);
+
+      if (policyId) {
+        // Store the policy ID for future use
+        localStorage.setItem("seal_policy_id", policyId);
+        console.log("Seal policy created and stored:", policyId);
+      }
+
+      return policyId;
+    } catch (error) {
+      console.error("Error creating/storing Seal policy:", error);
+      return null;
+    }
+  };
+
   const login = async (credentialResponse: any): Promise<void> => {
-    console.log('🔑 Login attempt started with current nonce:', nonce);
-    
+    console.log("🔑 Login attempt started with current nonce:", nonce);
+
     if (!credentialResponse.credential || !nonce) {
       console.error("Login failed: No credential or nonce available.");
       return;
@@ -315,8 +379,12 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
     // Critical: Check if zkLogin session is fully ready
     if (!ephemeralKeypair || !randomness || !maxEpoch) {
-      console.error("Login failed: zkLogin session not ready yet. Please wait a moment and try again.");
-      alert("Please wait a moment for the session to initialize, then try logging in again.");
+      console.error(
+        "Login failed: zkLogin session not ready yet. Please wait a moment and try again."
+      );
+      alert(
+        "Please wait a moment for the session to initialize, then try logging in again."
+      );
       return;
     }
 
@@ -325,23 +393,27 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     try {
       const decodedJwt = jwtDecode<DecodedJwt>(credentialResponse.credential);
       const googleId = decodedJwt.sub;
-      
+
       // CRITICAL: Check nonce immediately before proceeding
-      console.log('🔍 JWT received with embedded nonce:', decodedJwt.nonce);
-      console.log('🔍 Current app nonce:', nonce);
-      
+      console.log("🔍 JWT received with embedded nonce:", decodedJwt.nonce);
+      console.log("🔍 Current app nonce:", nonce);
+
       if (decodedJwt.nonce !== nonce) {
-        console.error('🚨 IMMEDIATE NONCE MISMATCH DETECTED!');
-        console.error('This means Google OAuth was initiated with a different nonce than current session');
-        console.error('JWT nonce:', decodedJwt.nonce);
-        console.error('App nonce:', nonce);
+        console.error("🚨 IMMEDIATE NONCE MISMATCH DETECTED!");
+        console.error(
+          "This means Google OAuth was initiated with a different nonce than current session"
+        );
+        console.error("JWT nonce:", decodedJwt.nonce);
+        console.error("App nonce:", nonce);
         setIsLoadingUser(false);
-        alert('Session mismatch detected. Please refresh the page and try logging in again.');
+        alert(
+          "Session mismatch detected. Please refresh the page and try logging in again."
+        );
         return;
       }
-      
-      console.log('✅ Nonce validation passed - proceeding with login');
-      
+
+      console.log("✅ Nonce validation passed - proceeding with login");
+
       setUserGoogleId(googleId);
 
       // Store JWT for blockchain transactions
@@ -398,6 +470,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         // First-time user - get salt for zkLogin address computation
         console.log("New user detected, creating account...");
         setIsFirstTimeUser(true);
+
+        const policyId = await createAndStoreSealPolicy();
 
         // Get consistent salt for zkLogin (not nonce!)
         const salt = await getOrCreateSaltForGoogleId(
@@ -476,12 +550,14 @@ This happens when the app generates new security keys but you're using an old lo
     setNonce(null);
     setRandomness(null);
     setMaxEpoch(null);
-    
+
     // Reset the setup flag to allow fresh initialization on next login
     zkLoginSetupCompleted.current = false;
-    
+
     console.log("🚪 User logged out - zkLogin session cleared");
-    console.log("💡 New ephemeral keypair will be generated when user clicks login");
+    console.log(
+      "💡 New ephemeral keypair will be generated when user clicks login"
+    );
   };
 
   const toggleTheme = (): void => {
