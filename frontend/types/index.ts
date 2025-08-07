@@ -3,7 +3,7 @@ export interface Agent {
   name: string;
   creator: string;
   strategy: string;
-  riskLevel: 'Low' | 'Medium' | 'High';
+  riskLevel: "Low" | "Medium" | "High";
   description: string;
   performanceMetrics: {
     totalReturn: number;
@@ -18,7 +18,7 @@ export interface Agent {
   subscribers: number;
 }
 
-export type Theme = 'light' | 'dark';
+export type Theme = "light" | "dark";
 
 export interface DecodedJwt {
   iss: string;
@@ -30,7 +30,8 @@ export interface DecodedJwt {
 export interface UserData {
   google_id: string;
   sui_address: string;
-  salt: string; // In production, this should be encrypted
+  salt: string; // Fallback salt stored locally
+  saltWalrusBlob?: string; // Optional - Walrus blob ID for encrypted salt
   created_at: string;
   last_login: string;
 }

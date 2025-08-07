@@ -1,34 +1,40 @@
-import React, { useState } from 'react';
-import { agents } from '../data/agents';
-import AgentCard from '../components/AgentCard';
-import { Agent } from '../types';
+import React, { useState } from "react";
+import { agents } from "../data/agents";
+import AgentCard from "../components/AgentCard";
+import { Agent } from "../types";
 
 const MarketplacePage: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedRisk, setSelectedRisk] = useState<string>('All');
-  const [sortBy, setSortBy] = useState<string>('totalReturn');
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [selectedRisk, setSelectedRisk] = useState<string>("All");
+  const [sortBy, setSortBy] = useState<string>("totalReturn");
 
   const filteredAndSortedAgents = React.useMemo(() => {
     let filtered = agents.filter((agent: Agent) => {
-      const matchesSearch = agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          agent.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          agent.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      const matchesRisk = selectedRisk === 'All' || agent.riskLevel === selectedRisk;
-      
+      const matchesSearch =
+        agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        agent.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        agent.tags.some((tag) =>
+          tag.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+      const matchesRisk =
+        selectedRisk === "All" || agent.riskLevel === selectedRisk;
+
       return matchesSearch && matchesRisk;
     });
 
     // Sort agents
     filtered.sort((a: Agent, b: Agent) => {
       switch (sortBy) {
-        case 'totalReturn':
-          return b.performanceMetrics.totalReturn - a.performanceMetrics.totalReturn;
-        case 'winRate':
+        case "totalReturn":
+          return (
+            b.performanceMetrics.totalReturn - a.performanceMetrics.totalReturn
+          );
+        case "winRate":
           return b.performanceMetrics.winRate - a.performanceMetrics.winRate;
-        case 'subscribers':
+        case "subscribers":
           return b.subscribers - a.subscribers;
-        case 'fee':
+        case "fee":
           return a.fee - b.fee;
         default:
           return 0;
@@ -46,7 +52,8 @@ const MarketplacePage: React.FC = () => {
           Trading Strategy Marketplace
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Discover and subscribe to automated trading strategies from expert creators
+          Discover and subscribe to automated trading strategies from expert
+          creators
         </p>
       </div>
 
@@ -55,7 +62,10 @@ const MarketplacePage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Search */}
           <div className="md:col-span-2">
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label
+              htmlFor="search"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
               Search Strategies
             </label>
             <input
@@ -70,7 +80,10 @@ const MarketplacePage: React.FC = () => {
 
           {/* Risk Level Filter */}
           <div>
-            <label htmlFor="risk" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label
+              htmlFor="risk"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
               Risk Level
             </label>
             <select
@@ -88,7 +101,10 @@ const MarketplacePage: React.FC = () => {
 
           {/* Sort By */}
           <div>
-            <label htmlFor="sort" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label
+              htmlFor="sort"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
               Sort By
             </label>
             <select
@@ -123,8 +139,18 @@ const MarketplacePage: React.FC = () => {
       ) : (
         <div className="text-center py-12">
           <div className="text-gray-400 dark:text-gray-500 mb-4">
-            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.175-5.5-2.971M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            <svg
+              className="w-16 h-16 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1}
+                d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.175-5.5-2.971M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+              />
             </svg>
           </div>
           <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
