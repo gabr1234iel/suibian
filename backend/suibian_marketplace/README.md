@@ -14,12 +14,14 @@ A decentralized marketplace for AI trading agents on the Sui blockchain, featuri
 ## 🔍 Overview
 
 SuiBian Marketplace allows users to:
+
 - **Create AI Trading Agents** with configurable parameters
 - **Subscribe to agents** with monthly fees
 - **Deposit trading funds** to TEE wallets for automated trading
 - **Manage subscriptions** and withdrawals securely
 
 ### Key Features
+
 - 🤖 **AI Agent Registry** - Create and manage trading agents
 - 💳 **Subscription Management** - Pay-per-use subscription model
 - 🔒 **TEE Integration** - Secure fund management with Trusted Execution Environment
@@ -29,9 +31,11 @@ SuiBian Marketplace allows users to:
 ## 🏗️ Contract Architecture
 
 ### 1. AgentRegistry.move
+
 **Purpose**: Manages trading agent creation and metadata
 
 **Key Structs**:
+
 ```move
 public struct TradingAgent has key, store {
     id: sui::object::UID,
@@ -50,14 +54,17 @@ public struct TradingAgent has key, store {
 ```
 
 **Main Functions**:
+
 - `create_agent()` - Register a new trading agent
 - `update_agent_status()` - Activate/deactivate agent
 - `update_agent_metadata()` - Update agent details (creator only)
 
 ### 2. SubscriptionManager.move
+
 **Purpose**: Handles user subscriptions and fund deposits
 
 **Key Structs**:
+
 ```move
 public struct UserSubscription has key, store {
     id: sui::object::UID,
@@ -80,6 +87,7 @@ public struct WithdrawalRequest has key, store {
 ```
 
 **Main Functions**:
+
 - `subscribe_to_agent()` - Subscribe to a trading agent
 - `deposit_trading_funds()` - Deposit funds to TEE wallet (subscribers only)
 - `request_withdrawal()` - Request withdrawal from TEE
@@ -88,11 +96,13 @@ public struct WithdrawalRequest has key, store {
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Sui CLI installed
 - Testnet SUI tokens
 - Node.js and npm (for testing)
 
 ### Deployment
+
 ```bash
 # Deploy the contracts
 sui client publish --gas-budget 100000000
@@ -101,15 +111,18 @@ sui client publish --gas-budget 100000000
 ```
 
 ### Configuration
+
 Update the test script with your deployed contract IDs:
+
 ```typescript
-const PACKAGE_ID = 'YOUR_PACKAGE_ID_HERE';
-const SUBSCRIPTION_MANAGER_ID = 'YOUR_SUBSCRIPTION_MANAGER_ID_HERE';
+const PACKAGE_ID = "YOUR_PACKAGE_ID_HERE";
+const SUBSCRIPTION_MANAGER_ID = "YOUR_SUBSCRIPTION_MANAGER_ID_HERE";
 ```
 
 ## 🧪 Testing
 
 ### Test Script Overview
+
 The comprehensive test script (`create_subscribe_test.ts`) demonstrates the full user flow:
 
 1. **Agent Creation** - Creator registers a new trading agent
@@ -118,6 +131,7 @@ The comprehensive test script (`create_subscribe_test.ts`) demonstrates the full
 4. **Access Control Test** - Unauthorized user fails to deposit (security validation)
 
 ### Running Tests
+
 ```bash
 cd script
 npm install
@@ -125,12 +139,15 @@ npm start
 ```
 
 ### Test Configuration
+
 The script uses economical amounts for testing:
+
 - **Subscription Fee**: 0.01 SUI
 - **Minimum Deposit**: 0.05 SUI
 - **Test Deposit Amount**: 0.05 SUI
 
 ### Expected Test Output
+
 ```
 🚀 Starting contract interaction tests...
 
@@ -159,7 +176,9 @@ TEE Wallet: 0.0000 SUI
 ### AgentRegistry Functions
 
 #### `create_agent`
+
 Creates a new trading agent.
+
 ```move
 public entry fun create_agent(
     name: vector<u8>,
@@ -174,7 +193,9 @@ public entry fun create_agent(
 ```
 
 #### `update_agent_metadata`
+
 Updates agent metadata (creator only).
+
 ```move
 public entry fun update_agent_metadata(
     agent: &mut TradingAgent,
@@ -188,7 +209,9 @@ public entry fun update_agent_metadata(
 ### SubscriptionManager Functions
 
 #### `subscribe_to_agent`
+
 Subscribe to a trading agent with payment.
+
 ```move
 public entry fun subscribe_to_agent(
     agent: &mut TradingAgent,
@@ -200,7 +223,9 @@ public entry fun subscribe_to_agent(
 ```
 
 #### `deposit_trading_funds`
+
 Deposit funds to TEE wallet (subscribers only).
+
 ```move
 public entry fun deposit_trading_funds(
     agent: &TradingAgent,
@@ -214,12 +239,14 @@ public entry fun deposit_trading_funds(
 ## 🛡️ Security Features
 
 ### Access Control
+
 - **Agent Updates**: Only creators can modify their agents
 - **Fund Deposits**: Only subscribed users can deposit trading funds
 - **Subscription Validation**: Checks subscriber address, agent ID, and active status
 - **TEE Signature Verification**: Withdrawals require valid TEE signatures
 
 ### Error Codes
+
 ```move
 const ENotCreator: u64 = 1;        // Not the agent creator
 const EAgentNotActive: u64 = 2;    // Agent is inactive
@@ -232,6 +259,7 @@ const ENotSubscriber: u64 = 6;     // Wrong subscriber address
 ```
 
 ### TEE Integration
+
 - **Secure Fund Storage**: Funds are transferred to TEE-controlled wallets
 - **Signature Verification**: Withdrawal completions require TEE signatures
 - **Transparent Operations**: All fund movements are tracked via events
@@ -239,16 +267,19 @@ const ENotSubscriber: u64 = 6;     // Wrong subscriber address
 ## 🔧 Development
 
 ### Building
+
 ```bash
 sui move build
 ```
 
 ### Testing Locally
+
 ```bash
 sui move test
 ```
 
 ### Publishing
+
 ```bash
 sui client publish --gas-budget 100000000
 ```

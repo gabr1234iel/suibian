@@ -10,50 +10,9 @@ import {
   generateNonce,
   computeZkLoginAddress,
 } from "@mysten/sui/zklogin";
-
-// Firebase imports
-import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { getOrCreateSaltForGoogleId } from "@/api/nonceApi";
 
 const SUI_DEVNET_RPC_URL = "https://fullnode.devnet.sui.io";
-
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyA8c_E4rla257hus8hHL2ha7Er2X1F3FIw",
-  authDomain: "suibian-marketplace.firebaseapp.com",
-  projectId: "suibian-marketplace",
-  storageBucket: "suibian-marketplace.firebasestorage.app",
-  messagingSenderId: "787011604748",
-  appId: "1:787011604748:web:1de5a9dcae78875857f929",
-  measurementId: "G-14MNJK555L",
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// Test Firebase connection
-const testFirebaseConnection = async () => {
-  try {
-    // Try to access a dummy document to test connection
-    const testDoc = doc(db, "test", "connection");
-    await getDoc(testDoc);
-    console.log("Firebase connection successful");
-    return true;
-  } catch (error) {
-    console.error("Firebase connection failed:", error);
-    return false;
-  }
-};
-
-// Simple encryption functions (in production, use proper encryption)
-const encryptSalt = (salt: string): string => {
-  return btoa(salt);
-};
-
-const decryptSalt = (encryptedSalt: string): string => {
-  return atob(encryptedSalt);
-};
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -86,7 +45,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   // zkLogin states for blockchain transactions
   const [jwt, setJwt] = useState<string | null>(null);
   const [userSalt, setUserSalt] = useState<string | null>(null);
-  const [ephemeralKeypair, setEphemeralKeypair] = useState<Ed25519Keypair | null>(null);
+  const [ephemeralKeypair, setEphemeralKeypair] =
+    useState<Ed25519Keypair | null>(null);
   const [zkProof, setZkProof] = useState<any>(null);
   
   // Ref to prevent multiple zkLogin setups
@@ -190,130 +150,85 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     getBalance();
   }, [userAddress]);
 
-  // Function to save user data to Firebase
-  const saveUserToFirebase = async (userData: UserData): Promise<void> => {
+  // Simplified user data management (removed Firebase dependency)
+  const saveUserToLocalStorage = async (userData: UserData): Promise<void> => {
     try {
-      console.log("Attempting to save user to Firebase:", userData.google_id);
-      await setDoc(doc(db, "users", userData.google_id), userData);
-      console.log("User data saved to Firebase successfully");
+      console.log("Saving user data to localStorage:", userData.google_id);
+      localStorage.setItem(
+        `user_${userData.google_id}`,
+        JSON.stringify(userData)
+      );
+      console.log("User data saved to localStorage successfully");
     } catch (error: any) {
-      console.error("Error saving user data to Firebase:", error);
-
-      if (error.code === "permission-denied") {
-        console.error(
-          "Firebase permission denied. This is likely due to Firestore security rules."
-        );
-        console.error(
-          "Please update your Firestore rules to allow read/write access."
-        );
-        // Don't throw - allow the app to continue without Firebase storage
-        return;
-      }
-
-      if (error instanceof Error) {
-        console.error("Error message:", error.message);
-        console.error("Error stack:", error.stack);
-      }
-
-      // Don't throw the error for now to allow graceful degradation
-      console.warn("Continuing without Firebase storage...");
+      console.error("Error saving user data to localStorage:", error);
     }
   };
 
-  // Function to get user data from Firebase
-  const getUserFromFirebase = async (
+  const getUserFromLocalStorage = async (
     googleId: string
   ): Promise<UserData | null> => {
     try {
-      console.log(
-        "Attempting to get user from Firebase with Google ID:",
-        googleId
-      );
-      const userDoc = await getDoc(doc(db, "users", googleId));
-      if (userDoc.exists()) {
-        console.log("User document found in Firebase");
-        return userDoc.data() as UserData;
+      console.log("Getting user from localStorage with Google ID:", googleId);
+      const userData = localStorage.getItem(`user_${googleId}`);
+      if (userData) {
+        console.log("User data found in localStorage");
+        return JSON.parse(userData) as UserData;
       }
-      console.log("No user document found in Firebase");
+      console.log("No user data found in localStorage");
       return null;
     } catch (error: any) {
-      console.error("Error getting user data from Firebase:", error);
-
-      if (error.code === "permission-denied") {
-        console.error(
-          "Firebase permission denied. This is likely due to Firestore security rules."
-        );
-        console.error(
-          "Please update your Firestore rules to allow read/write access."
-        );
-        // For now, return null to allow the app to continue
-        return null;
-      }
-
-      if (error instanceof Error) {
-        console.error("Error message:", error.message);
-        console.error("Error stack:", error.stack);
-      }
-
-      // Don't throw the error, just return null to allow graceful degradation
+      console.error("Error getting user data from localStorage:", error);
       return null;
-    }
-  };
-
-  // Function to update last login time
-  const updateLastLogin = async (googleId: string): Promise<void> => {
-    try {
-      const userRef = doc(db, "users", googleId);
-      const userDoc = await getDoc(userRef);
-      if (userDoc.exists()) {
-        await setDoc(userRef, {
-          ...userDoc.data(),
-          last_login: new Date().toISOString(),
-        });
-      }
-    } catch (error: any) {
-      console.error("Error updating last login:", error);
-      if (error.code === "permission-denied") {
-        console.warn("Cannot update last login due to Firebase permissions");
-      }
-      // Don't throw - this is not critical
     }
   };
 
   // Generate zkProof ONCE per session and cache it
-  const generateAndCacheZkProof = async (saltValue?: string, jwtValue?: string): Promise<void> => {
+  const generateAndCacheZkProof = async (
+    saltValue?: string,
+    jwtValue?: string
+  ): Promise<void> => {
     const currentSalt = saltValue || userSalt;
     const currentJwt = jwtValue || jwt;
 
     // Debug: Log all parameters to see what's missing
-    console.log('zkLogin parameters check:', {
+    console.log("zkLogin parameters check:", {
       jwt: !!currentJwt,
       ephemeralKeypair: !!ephemeralKeypair,
       randomness: !!randomness,
       currentSalt: !!currentSalt,
-      maxEpoch: !!maxEpoch
+      maxEpoch: !!maxEpoch,
     });
 
-    if (!currentJwt || !ephemeralKeypair || !randomness || !currentSalt || !maxEpoch) {
-      console.error('Missing zkLogin parameters:', {
-        jwt: !currentJwt ? 'MISSING' : 'OK',
-        ephemeralKeypair: !ephemeralKeypair ? 'MISSING' : 'OK',
-        randomness: !randomness ? 'MISSING' : 'OK',
-        currentSalt: !currentSalt ? 'MISSING' : 'OK',
-        maxEpoch: !maxEpoch ? 'MISSING' : 'OK'
+    if (
+      !currentJwt ||
+      !ephemeralKeypair ||
+      !randomness ||
+      !currentSalt ||
+      !maxEpoch
+    ) {
+      console.error("Missing zkLogin parameters:", {
+        jwt: !currentJwt ? "MISSING" : "OK",
+        ephemeralKeypair: !ephemeralKeypair ? "MISSING" : "OK",
+        randomness: !randomness ? "MISSING" : "OK",
+        currentSalt: !currentSalt ? "MISSING" : "OK",
+        maxEpoch: !maxEpoch ? "MISSING" : "OK",
       });
-      throw new Error('Missing required zkLogin parameters for proof generation');
+      throw new Error(
+        "Missing required zkLogin parameters for proof generation"
+      );
     }
 
     try {
-      console.log('🔄 Generating zkProof for session (this may take a few seconds)...');
+      console.log(
+        "🔄 Generating zkProof for session (this may take a few seconds)..."
+      );
 
       // Verify JWT nonce matches current nonce before proceeding
       const decodedJwt = jwtDecode<DecodedJwt>(currentJwt);
       if (decodedJwt.nonce !== nonce) {
         console.warn('🚨 JWT nonce mismatch detected - session expired!', {
           jwtNonce: decodedJwt.nonce,
-          currentNonce: nonce
+          currentNonce: nonce,
         });
         
         // Clear all session data and force re-login
@@ -330,18 +245,21 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         throw new Error('Session expired - nonce mismatch detected. User has been logged out.');
       }
 
-      const { getExtendedEphemeralPublicKey } = await import('@mysten/zklogin');
-      console.log('zkProof generation using ephemeral key:', ephemeralKeypair.getPublicKey().toSuiAddress());
+      const { getExtendedEphemeralPublicKey } = await import("@mysten/zklogin");
+      console.log(
+        "zkProof generation using ephemeral key:",
+        ephemeralKeypair.getPublicKey().toSuiAddress()
+      );
 
       const extendedEphemeralPublicKey = getExtendedEphemeralPublicKey(
         ephemeralKeypair.getPublicKey()
       );
 
       // Call Mysten Labs proving service
-      const response = await fetch('https://prover-dev.mystenlabs.com/v1', {
-        method: 'POST',
+      const response = await fetch("https://prover-dev.mystenlabs.com/v1", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           jwt: currentJwt,
@@ -349,31 +267,41 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
           maxEpoch: maxEpoch.toString(),
           jwtRandomness: randomness,
           salt: currentSalt,
-          keyClaimName: "sub"
+          keyClaimName: "sub",
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Prover service failed: ${response.status} - ${errorText}`);
+        throw new Error(
+          `Prover service failed: ${response.status} - ${errorText}`
+        );
       }
 
       const proof = await response.json();
-      console.log('🔍 zkProof structure received:', {
+      console.log("🔍 zkProof structure received:", {
         keys: Object.keys(proof),
         hasProofPoints: !!proof.proofPoints,
         hasIssBase64Details: !!proof.issBase64Details,
-        proofPointsKeys: proof.proofPoints ? Object.keys(proof.proofPoints) : 'none',
-        issBase64DetailsKeys: proof.issBase64Details ? Object.keys(proof.issBase64Details) : 'none'
+        proofPointsKeys: proof.proofPoints
+          ? Object.keys(proof.proofPoints)
+          : "none",
+        issBase64DetailsKeys: proof.issBase64Details
+          ? Object.keys(proof.issBase64Details)
+          : "none",
       });
-      console.log('🔍 Full zkProof object:', JSON.stringify(proof, null, 2));
+      console.log("🔍 Full zkProof object:", JSON.stringify(proof, null, 2));
 
       setZkProof(proof);
 
-      console.log('✅ zkProof generated and cached for session!');
+      console.log("✅ zkProof generated and cached for session!");
     } catch (error) {
-      console.error('❌ Failed to generate zkProof:', error);
-      throw new Error(`zkLogin proof generation failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.error("❌ Failed to generate zkProof:", error);
+      throw new Error(
+        `zkLogin proof generation failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   };
 
@@ -422,60 +350,66 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       console.log("Google ID:", googleId);
       console.log("JWT stored for blockchain transactions");
 
-      // Check if user exists in Firebase
-      const existingUser = await getUserFromFirebase(googleId);
+      // Check if user exists in local storage
+      const existingUser = await getUserFromLocalStorage(googleId);
 
       if (existingUser) {
         // Returning user - use existing data
         console.log("Returning user found:", existingUser);
         setIsFirstTimeUser(false);
 
-        const decryptedSalt = decryptSalt(existingUser.salt);
-        setUserSalt(decryptedSalt); // Store for blockchain transactions
+        // Salt is now stored directly (no encryption needed)
+        const userSalt = existingUser.salt;
+        setUserSalt(userSalt); // Store for blockchain transactions
 
         const zkLoginUserAddress = computeZkLoginAddress({
           claimName: "sub",
           claimValue: googleId,
-          userSalt: BigInt(decryptedSalt),
+          userSalt: BigInt(userSalt),
           iss: decodedJwt.iss,
           aud: decodedJwt.aud,
         });
 
-        console.log('🏠 Computed zkLogin address with:', {
+        console.log("🏠 Computed zkLogin address with:", {
           claimName: "sub",
           claimValue: googleId,
-          userSalt: decryptedSalt,
+          userSalt: userSalt,
           iss: decodedJwt.iss,
           aud: decodedJwt.aud,
-          computedAddress: zkLoginUserAddress
+          computedAddress: zkLoginUserAddress,
         });
 
         setUserAddress(zkLoginUserAddress);
 
         // Generate zkProof ONCE per session (expensive operation)
-        await generateAndCacheZkProof(decryptedSalt, credentialResponse.credential);
+        await generateAndCacheZkProof(userSalt, credentialResponse.credential);
 
         setIsLoggedIn(true);
 
-        // Update last login time
-        await updateLastLogin(googleId);
+        // Update last login time in localStorage
+        existingUser.last_login = new Date().toISOString();
+        await saveUserToLocalStorage(existingUser);
 
         console.log(
           "Welcome back! Using existing Sui address:",
           zkLoginUserAddress
         );
       } else {
-        // First-time user - create new data
+        // First-time user - get salt for zkLogin address computation
         console.log("New user detected, creating account...");
         setIsFirstTimeUser(true);
 
-        const newSalt = generateRandomness().toString();
-        setUserSalt(newSalt); // Store for blockchain transactions
+        // Get consistent salt for zkLogin (not nonce!)
+        const salt = await getOrCreateSaltForGoogleId(
+          googleId,
+          ephemeralKeypair!
+        );
+        setUserSalt(salt); // Store for blockchain transactions
 
         const zkLoginUserAddress = computeZkLoginAddress({
           claimName: "sub",
           claimValue: googleId,
-          userSalt: BigInt(newSalt),
+          userSalt: BigInt(salt),
           iss: decodedJwt.iss,
           aud: decodedJwt.aud,
         });
@@ -483,55 +417,46 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         setUserAddress(zkLoginUserAddress);
 
         // Generate zkProof ONCE per session
-        await generateAndCacheZkProof(newSalt, credentialResponse.credential);
+        await generateAndCacheZkProof(salt, credentialResponse.credential);
 
         setIsLoggedIn(true);
 
-        // Save new user to Firebase
+        // Save new user to localStorage
         const userData: UserData = {
           google_id: googleId,
           sui_address: zkLoginUserAddress,
-          salt: encryptSalt(newSalt), // Encrypt salt before storing
+          salt: salt, // Store salt directly (no encryption needed for localStorage)
           created_at: new Date().toISOString(),
           last_login: new Date().toISOString(),
         };
 
-        await saveUserToFirebase(userData);
+        await saveUserToLocalStorage(userData);
 
         console.log("New user created with Sui address:", zkLoginUserAddress);
       }
     } catch (error: any) {
       console.error("Error during login process:", error);
 
-      if (error.code === "permission-denied") {
-        console.error(
-          "Firebase permission denied - continuing with local-only mode"
-        );
-        console.warn(
-          "User data will not be persisted. Please check Firestore security rules."
-        );
-        // Still allow login to succeed, just without Firebase persistence
-      } else {
-        if (error instanceof Error) {
-          console.error("Error message:", error.message);
-          console.error("Error stack:", error.stack);
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
 
-          // Handle nonce mismatch specifically
-          if (error.message.includes('JWT nonce mismatch')) {
-            alert(
-              `🔄 Authentication session expired. Please logout and login again to refresh your session.
-              
+        // Handle nonce mismatch specifically
+        if (error.message.includes("JWT nonce mismatch")) {
+          alert(
+            `🔄 Authentication session expired. Please logout and login again to refresh your session.
+            
 This happens when the app generates new security keys but you're using an old login token.`
-            );
-            return;
-          }
+          );
+          return;
         }
-        alert(
-          `Error during login: ${error instanceof Error ? error.message : "Unknown error"
-          }. Please try again.`
-        );
-        return; // Exit if non-Firebase error
       }
+
+      alert(
+        `Error during login: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }. Please try again.`
+      );
     } finally {
       setIsLoadingUser(false);
     }
