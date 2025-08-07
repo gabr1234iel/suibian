@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import NavBar from '../components/NavBar';
 
 interface AccordionItemProps {
   title: string;
@@ -97,7 +98,10 @@ const SettingsPage: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-dark-900 text-white">
+      <NavBar />
+      
+      <div className="max-w-4xl mx-auto px-6 py-8 pt-24">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           Settings
@@ -236,6 +240,7 @@ const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
