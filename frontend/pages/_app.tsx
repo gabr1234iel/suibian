@@ -1,8 +1,14 @@
 import type { AppProps } from 'next/app';
 import { AppContextProvider } from '../context/AppContext';
-import Layout from '../components/Layout';
 import '../styles/globals.css';
 import { useEffect } from 'react';
+import { JetBrains_Mono } from 'next/font/google';
+
+const jetbrainsMono = JetBrains_Mono({ 
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700', '800'],
+  variable: '--font-jetbrains'
+});
 
 function MyApp({ Component, pageProps }: AppProps) {
   useEffect(() => {
@@ -11,11 +17,11 @@ function MyApp({ Component, pageProps }: AppProps) {
   }, []);
 
   return (
-    <AppContextProvider>
-      <Layout>
-        <Component {...pageProps} />
-      </Layout>
-    </AppContextProvider>
+    <div className={jetbrainsMono.className}>
+      <AppContextProvider>
+          <Component {...pageProps} />
+      </AppContextProvider>
+    </div>
   );
 }
 

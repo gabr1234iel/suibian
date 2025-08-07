@@ -1,49 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import LoadingScreen from '../components/LoadingScreen';
-
-// Simple SVG icons
-const SparklesIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.5 2.5L16 4.5 13.5 7M21 8l-3.5 3.5L16 10l1.5-1.5M21 21l-3.5-3.5L16 19l1.5 1.5" />
-  </svg>
-);
-
-const ChevronRightIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-);
-
-const ShieldCheckIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-  </svg>
-);
-
-const ChartBarIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-  </svg>
-);
-
-const CurrencyDollarIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-  </svg>
-);
-
-const BoltIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-  </svg>
-);
+import NavBar from '../components/NavBar';
+import Hero from '../components/Hero';
+import FeatureCards from '../components/FeatureCards';
+import Process from '../components/Process';
+import CallToAction from '../components/CallToAction';
+import { motion } from 'framer-motion';
+import { Sparkles, Bot, Shield, Zap, TrendingUp } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
   const router = useRouter();
   const [showLoading, setShowLoading] = useState(true);
 
-  // Show loading screen for 2.5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowLoading(false);
@@ -56,259 +25,369 @@ const LandingPage: React.FC = () => {
     router.push('/login');
   };
 
-  // Show loading screen
   if (showLoading) {
     return <LoadingScreen />;
   }
 
   return (
     <div className="min-h-screen bg-dark-900 text-white overflow-hidden">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-dark-900/90 backdrop-blur-md border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                <SparklesIcon className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-gradient-blue to-gradient-purple bg-clip-text text-transparent">
-                SuiBian
-              </span>
-            </div>
-            <button
-              onClick={handleGetStarted}
-              className="px-6 py-2 bg-gradient-primary text-white rounded-full font-semibold hover:scale-105 transition-transform"
-            >
-              Launch App
-            </button>
-          </div>
-        </div>
-      </nav>
+      
+      <NavBar isLandingPage={true} onGetStarted={handleGetStarted} />
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center px-6 pt-20">
-        <div className="absolute inset-0 bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gradient-blue/10 via-transparent to-transparent"></div>
-        
-        <div className="relative max-w-6xl mx-auto text-center">
-          <div className="space-y-8">
-            <div className="inline-flex items-center px-6 py-3 bg-dark-800/50 border border-gray-700 rounded-full backdrop-blur-sm">
-              <BoltIcon className="w-4 h-4 text-gradient-blue mr-2" />
-              <span className="text-sm text-gray-300">Revolutionizing DeFi Trading</span>
-            </div>
-
-            <h1 className="text-5xl md:text-7xl font-bold leading-tight">
-              Trade Smarter with{' '}
-              <span className="bg-gradient-to-r from-gradient-blue via-gradient-purple to-gradient-cyan bg-clip-text text-transparent">
-                AI Agents
-              </span>
-            </h1>
-
-            <p className="text-xl md:text-2xl text-text-secondary max-w-3xl mx-auto leading-relaxed">
-              Create, monetize, and deploy autonomous trading strategies on the Sui blockchain. 
-              The future of decentralized finance is here.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-16">
-              <button
-                onClick={handleGetStarted}
-                className="group relative px-10 py-5 bg-gradient-primary text-white rounded-full font-bold text-xl hover:scale-105 transition-all duration-300 shadow-2xl shadow-gradient-blue/40 hover:shadow-3xl hover:shadow-gradient-blue/60 overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                <span className="relative flex items-center">
-                  Start Trading Now
-                  <ChevronRightIcon className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
-                </span>
-              </button>
-              
-              <button className="group px-10 py-5 border-2 border-gray-600 text-white rounded-full font-bold text-xl hover:border-gradient-blue hover:bg-gradient-blue/10 transition-all duration-300 hover:shadow-xl hover:shadow-gradient-blue/20 backdrop-blur-sm">
-                <span className="flex items-center">
-                  Watch Demo
-                  <BoltIcon className="w-5 h-5 ml-2 opacity-60 group-hover:opacity-100 transition-opacity duration-200" />
-                </span>
-              </button>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-              <div className="text-center group">
-                <div className="text-3xl font-bold text-gradient-blue mb-2 group-hover:scale-110 transition-transform duration-300">$50M+</div>
-                <div className="text-text-secondary flex items-center justify-center">
-                  <span className="mr-1">💹</span>
-                  Total Volume
-                </div>
-              </div>
-              <div className="text-center group">
-                <div className="text-3xl font-bold text-gradient-purple mb-2 group-hover:scale-110 transition-transform duration-300">10K+</div>
-                <div className="text-text-secondary flex items-center justify-center">
-                  <span className="mr-1">👥</span>
-                  Active Traders
-                </div>
-              </div>
-              <div className="text-center group">
-                <div className="text-3xl font-bold text-gradient-cyan mb-2 group-hover:scale-110 transition-transform duration-300">500+</div>
-                <div className="text-text-secondary flex items-center justify-center">
-                  <span className="mr-1">🎯</span>
-                  Strategies
-                </div>
-              </div>
-              <div className="text-center group">
-                <div className="text-3xl font-bold text-gradient-pink mb-2 group-hover:scale-110 transition-transform duration-300">99.9%</div>
-                <div className="text-text-secondary flex items-center justify-center">
-                  <span className="mr-1">⚡</span>
-                  Uptime
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <section id="hero">
+        <Hero onGetStarted={handleGetStarted} />
       </section>
 
-      {/* Features Section */}
-      <section className="px-6 py-20 bg-dark-800/50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Why Choose{' '}
-              <span className="bg-gradient-to-r from-gradient-blue to-gradient-purple bg-clip-text text-transparent">
-                SuiBian?
-              </span>
-            </h2>
-            <p className="text-xl text-text-secondary max-w-2xl mx-auto">
-              Experience the next generation of trading with cutting-edge technology and unparalleled security.
-            </p>
-          </div>
+      <section id="features" className="relative z-10">
+        <FeatureCards />
+      </section>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Secure & Decentralized Card */}
-            <div className="group relative overflow-hidden h-[400px]">
-              <div className="absolute inset-0 bg-gradient-to-br from-gradient-blue/20 to-gradient-purple/10 rounded-2xl blur-xl opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative h-full p-8 bg-dark-800/90 backdrop-blur-sm border border-gray-700 rounded-2xl hover:border-gradient-blue/50 transition-all duration-500 hover:shadow-2xl hover:shadow-gradient-blue/30 hover:transform hover:scale-[1.02] flex flex-col">
-                <div className="relative">
-                  <div className="w-16 h-16 bg-gradient-to-br from-gradient-blue to-gradient-purple rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-gradient-blue/30 group-hover:shadow-xl group-hover:shadow-gradient-blue/50 transition-all duration-300">
-                    <ShieldCheckIcon className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-blue rounded-full opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
-                  <div className="absolute top-2 right-2 text-2xl opacity-30 group-hover:opacity-60 transition-opacity duration-300">🛡️</div>
-                </div>
-                <div className="flex-1 flex flex-col">
-                  <h3 className="text-2xl font-bold mb-6 text-white group-hover:text-gradient-blue transition-colors duration-300">
-                    Secure & Decentralized
-                  </h3>
-                  <p className="text-text-secondary text-lg leading-relaxed group-hover:text-gray-300 transition-colors duration-300 flex-1">
-                    Built on Sui blockchain with zkLogin authentication. Your assets remain in your control at all times with enterprise-grade security.
-                  </p>
-                  <div className="mt-6 flex items-center text-gradient-blue font-semibold opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                    <span>Learn more</span>
-                    <ChevronRightIcon className="w-4 h-4 ml-1" />
-                  </div>
-                </div>
-              </div>
-            </div>
+      <section id="how-it-works">
+        <Process />
+      </section>
 
-            {/* AI-Powered Strategies Card */}
-            <div className="group relative overflow-hidden h-[400px]">
-              <div className="absolute inset-0 bg-gradient-to-br from-gradient-purple/20 to-gradient-pink/10 rounded-2xl blur-xl opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative h-full p-8 bg-dark-800/90 backdrop-blur-sm border border-gray-700 rounded-2xl hover:border-gradient-purple/50 transition-all duration-500 hover:shadow-2xl hover:shadow-gradient-purple/30 hover:transform hover:scale-[1.02] flex flex-col">
-                <div className="relative">
-                  <div className="w-16 h-16 bg-gradient-to-br from-gradient-purple to-gradient-pink rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-gradient-purple/30 group-hover:shadow-xl group-hover:shadow-gradient-purple/50 transition-all duration-300">
-                    <ChartBarIcon className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-purple rounded-full opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
-                  <div className="absolute top-2 right-2 text-2xl opacity-30 group-hover:opacity-60 transition-opacity duration-300">🤖</div>
-                </div>
-                <div className="flex-1 flex flex-col">
-                  <h3 className="text-2xl font-bold mb-6 text-white group-hover:text-gradient-purple transition-colors duration-300">
-                    AI-Powered Strategies
-                  </h3>
-                  <p className="text-text-secondary text-lg leading-relaxed group-hover:text-gray-300 transition-colors duration-300 flex-1">
-                    Advanced machine learning algorithms analyze market patterns to optimize your trading performance with real-time insights.
-                  </p>
-                  <div className="mt-6 flex items-center text-gradient-purple font-semibold opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                    <span>Learn more</span>
-                    <ChevronRightIcon className="w-4 h-4 ml-1" />
-                  </div>
-                </div>
-              </div>
-            </div>
+      <section id="about" className="relative py-32 px-6 bg-dark-900/50 backdrop-blur-xl overflow-hidden">
+        {/* Background elements */}
+        <div className="absolute inset-0">
+          {/* Animated gradient orbs */}
+          <motion.div
+            className="absolute top-20 left-10 w-72 h-72 bg-gradient-radial from-blue-500/10 to-transparent rounded-full blur-3xl"
+            animate={{
+              scale: [1, 1.3, 1],
+              opacity: [0.2, 0.4, 0.2],
+            }}
+            transition={{ duration: 8, repeat: Infinity }}
+          />
+          
+          <motion.div
+            className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-radial from-purple-500/10 to-transparent rounded-full blur-3xl"
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.3, 0.5, 0.3],
+            }}
+            transition={{ duration: 10, repeat: Infinity }}
+          />
+        </div>
 
-            {/* Monetize Your Expertise Card */}
-            <div className="group relative overflow-hidden h-[400px]">
-              <div className="absolute inset-0 bg-gradient-to-br from-gradient-cyan/20 to-gradient-blue/10 rounded-2xl blur-xl opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="relative h-full p-8 bg-dark-800/90 backdrop-blur-sm border border-gray-700 rounded-2xl hover:border-gradient-cyan/50 transition-all duration-500 hover:shadow-2xl hover:shadow-gradient-cyan/30 hover:transform hover:scale-[1.02] flex flex-col">
-                <div className="relative">
-                  <div className="w-16 h-16 bg-gradient-to-br from-gradient-cyan to-gradient-blue rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-gradient-cyan/30 group-hover:shadow-xl group-hover:shadow-gradient-cyan/50 transition-all duration-300">
-                    <CurrencyDollarIcon className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-cyan rounded-full opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
-                  <div className="absolute top-2 right-2 text-2xl opacity-30 group-hover:opacity-60 transition-opacity duration-300">💰</div>
+        {/* Floating SVG icons */}
+        <motion.div
+          className="absolute top-24 left-20 w-16 h-16 p-4 bg-glass-white backdrop-blur-xl border border-white/20 rounded-2xl"
+          initial={{ opacity: 0, scale: 0, rotate: -180 }}
+          animate={{ 
+            opacity: 1, 
+            scale: 1, 
+            rotate: 0,
+            y: [0, -10, 0],
+          }}
+          transition={{
+            opacity: { duration: 0.6, delay: 0.2 },
+            scale: { duration: 0.6, delay: 0.2 },
+            rotate: { duration: 0.8, delay: 0.2 },
+            y: { 
+              duration: 3, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 1.2
+            }
+          }}
+          whileHover={{ scale: 1.2, rotate: 360 }}
+        >
+          <img src="/icons/bitcoin.svg" alt="Bitcoin" className="w-full h-full" />
+        </motion.div>
+        
+        <motion.div
+          className="absolute top-40 right-24 w-12 h-12 p-3 bg-glass-white backdrop-blur-xl border border-white/20 rounded-2xl"
+          initial={{ opacity: 0, scale: 0, rotate: -180 }}
+          animate={{ 
+            opacity: 1, 
+            scale: 1, 
+            rotate: 0,
+            y: [0, -15, 0],
+          }}
+          transition={{
+            opacity: { duration: 0.6, delay: 0.4 },
+            scale: { duration: 0.6, delay: 0.4 },
+            rotate: { duration: 0.8, delay: 0.4 },
+            y: { 
+              duration: 4, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 1.4
+            }
+          }}
+          whileHover={{ scale: 1.2, rotate: 360 }}
+        >
+          <img src="/icons/ethereum.svg" alt="Ethereum" className="w-full h-full" />
+        </motion.div>
+        
+        <motion.div
+          className="absolute bottom-32 left-32 w-14 h-14 p-3 bg-glass-white backdrop-blur-xl border border-white/20 rounded-2xl"
+          initial={{ opacity: 0, scale: 0, rotate: -180 }}
+          animate={{ 
+            opacity: 1, 
+            scale: 1, 
+            rotate: 0,
+            y: [0, -12, 0],
+          }}
+          transition={{
+            opacity: { duration: 0.6, delay: 0.6 },
+            scale: { duration: 0.6, delay: 0.6 },
+            rotate: { duration: 0.8, delay: 0.6 },
+            y: { 
+              duration: 3.5, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 1.6
+            }
+          }}
+          whileHover={{ scale: 1.2, rotate: 360 }}
+        >
+          <img src="/icons/wallet.svg" alt="Wallet" className="w-full h-full" />
+        </motion.div>
+
+        {/* Additional floating Lucide icons */}
+        <motion.div
+          className="absolute top-60 left-16 w-10 h-10 p-2 bg-gradient-to-br from-purple-500/20 to-blue-500/20 backdrop-blur-xl border border-purple-300/30 rounded-xl"
+          initial={{ opacity: 0, scale: 0, rotate: -90 }}
+          animate={{ 
+            opacity: 1, 
+            scale: 1, 
+            rotate: 0,
+            y: [0, -8, 0],
+          }}
+          transition={{
+            opacity: { duration: 0.6, delay: 0.8 },
+            scale: { duration: 0.6, delay: 0.8 },
+            rotate: { duration: 0.8, delay: 0.8 },
+            y: { 
+              duration: 4, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 1.8
+            }
+          }}
+          whileHover={{ scale: 1.3, rotate: 180 }}
+        >
+          <Bot className="w-full h-full text-purple-300" />
+        </motion.div>
+
+        <motion.div
+          className="absolute bottom-48 right-16 w-12 h-12 p-3 bg-gradient-to-br from-emerald-500/20 to-green-500/20 backdrop-blur-xl border border-emerald-300/30 rounded-xl"
+          initial={{ opacity: 0, scale: 0, rotate: 90 }}
+          animate={{ 
+            opacity: 1, 
+            scale: 1, 
+            rotate: 0,
+            y: [0, -10, 0],
+          }}
+          transition={{
+            opacity: { duration: 0.6, delay: 1.0 },
+            scale: { duration: 0.6, delay: 1.0 },
+            rotate: { duration: 0.8, delay: 1.0 },
+            y: { 
+              duration: 3.2, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 2.0
+            }
+          }}
+          whileHover={{ scale: 1.3, rotate: -180 }}
+        >
+          <Shield className="w-full h-full text-emerald-300" />
+        </motion.div>
+
+        <motion.div
+          className="absolute top-80 right-32 w-8 h-8 p-2 bg-gradient-to-br from-amber-500/20 to-yellow-500/20 backdrop-blur-xl border border-amber-300/30 rounded-xl"
+          initial={{ opacity: 0, scale: 0, rotate: -45 }}
+          animate={{ 
+            opacity: 1, 
+            scale: 1, 
+            rotate: 0,
+            y: [0, -6, 0],
+          }}
+          transition={{
+            opacity: { duration: 0.6, delay: 1.2 },
+            scale: { duration: 0.6, delay: 1.2 },
+            rotate: { duration: 0.8, delay: 1.2 },
+            y: { 
+              duration: 2.8, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 2.2
+            }
+          }}
+          whileHover={{ scale: 1.4, rotate: 270 }}
+        >
+          <Zap className="w-full h-full text-amber-300" />
+        </motion.div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <motion.div
+            className="text-center"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+          >
+            <motion.h2 
+              className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-gradient-blue to-gradient-purple bg-clip-text text-transparent"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.1 }}
+              viewport={{ once: true }}
+            >
+              About SuiBian
+            </motion.h2>
+            <motion.p 
+              className="text-xl text-text-secondary max-w-3xl mx-auto mb-12 leading-relaxed"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              viewport={{ once: true }}
+            >
+              SuiBian is a revolutionary marketplace for AI-powered trading agents built on the Sui blockchain. 
+              We democratize access to sophisticated trading strategies by allowing users to deploy, subscribe to, 
+              and monetize intelligent trading bots that operate autonomously on your behalf.
+            </motion.p>
+            <motion.div
+              className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              viewport={{ once: true }}
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Bot className="w-8 h-8 text-white" />
                 </div>
-                <div className="flex-1 flex flex-col">
-                  <h3 className="text-2xl font-bold mb-6 text-white group-hover:text-gradient-cyan transition-colors duration-300">
-                    Monetize Your Expertise
-                  </h3>
-                  <p className="text-text-secondary text-lg leading-relaxed group-hover:text-gray-300 transition-colors duration-300 flex-1">
-                    Create and sell your trading strategies. Earn passive income from successful algorithmic trading with our marketplace.
-                  </p>
-                  <div className="mt-6 flex items-center text-gradient-cyan font-semibold opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                    <span>Learn more</span>
-                    <ChevronRightIcon className="w-4 h-4 ml-1" />
-                  </div>
-                </div>
+                <h3 className="text-xl font-semibold mb-2">AI-Powered</h3>
+                <p className="text-text-secondary">Advanced machine learning algorithms drive our trading agents for optimal performance.</p>
               </div>
-            </div>
-          </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Blockchain Secure</h3>
+                <p className="text-text-secondary">Built on Sui for fast, secure, and transparent trading operations.</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <TrendingUp className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Community Driven</h3>
+                <p className="text-text-secondary">Create, share, and monetize your trading strategies with the community.</p>
+              </div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="px-6 py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="relative h-[400px] flex items-center justify-center">
-            <div className="absolute inset-0 bg-gradient-primary opacity-10 rounded-3xl blur-3xl animate-pulse"></div>
-            <div className="relative p-12 bg-dark-800/95 border border-gray-700 rounded-3xl backdrop-blur-xl w-full h-full flex flex-col justify-center">
-              <div className="mb-4 text-4xl animate-bounce">🚀</div>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                Ready to{' '}
-                <span className="bg-gradient-to-r from-gradient-blue to-gradient-purple bg-clip-text text-transparent">
-                  Transform
-                </span>{' '}
-                Your Trading?
-              </h2>
-              <p className="text-xl text-text-secondary mb-8 max-w-2xl mx-auto">
-                Join thousands of traders who are already benefiting from automated, AI-driven trading strategies! ✨
-              </p>
-              <button
-                onClick={handleGetStarted}
-                className="group relative px-12 py-5 bg-gradient-primary text-white rounded-full font-bold text-xl hover:scale-105 transition-all duration-300 shadow-2xl shadow-gradient-blue/40 hover:shadow-3xl hover:shadow-gradient-blue/60 overflow-hidden mx-auto"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                <span className="relative flex items-center">
-                  🚀 Launch App
-                  <ChevronRightIcon className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
+      <section id="getstarted">
+        <CallToAction onGetStarted={handleGetStarted} />
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 px-6 py-12">
+      <footer className="relative border-t border-white/10 px-6 py-16 bg-dark-900/50 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                <SparklesIcon className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-gradient-blue to-gradient-purple bg-clip-text text-transparent">
+          <motion.div
+            className="flex flex-col md:flex-row justify-between items-center"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+          >
+            <motion.div 
+              className="flex items-center space-x-3 mb-8 md:mb-0 group cursor-pointer"
+              whileHover={{ scale: 1.02 }}
+            >
+              <motion.div 
+                className="w-12 h-12 bg-gradient-primary rounded-2xl flex items-center justify-center shadow-glow"
+                animate={{ 
+                  boxShadow: [
+                    '0 0 20px rgba(0, 212, 255, 0.3)',
+                    '0 0 30px rgba(139, 92, 246, 0.4)',
+                    '0 0 20px rgba(0, 212, 255, 0.3)',
+                  ]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <Sparkles className="w-7 h-7 text-white" />
+              </motion.div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-gradient-blue to-gradient-purple bg-clip-text text-transparent">
                 SuiBian
               </span>
+            </motion.div>
+
+            <motion.div
+              className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-12"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              viewport={{ once: true }}
+            >
+              {/* Quick links */}
+              <div className="flex flex-wrap justify-center md:justify-start gap-6 text-text-secondary">
+                {['Features', 'Marketplace', 'Documentation', 'Support'].map((link, index) => (
+                  <motion.a
+                    key={link}
+                    href={`#${link.toLowerCase()}`}
+                    className="hover:text-white transition-colors duration-300"
+                    whileHover={{ y: -2 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    viewport={{ once: true }}
+                  >
+                    {link}
+                  </motion.a>
+                ))}
+              </div>
+
+              <motion.div
+                className="text-text-secondary text-center md:text-right"
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                viewport={{ once: true }}
+              >
+                <div className="mb-2">© 2025 SuiBian</div>
+                <div className="text-sm">Building the future of decentralized trading</div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+
+          {/* Additional footer content */}
+          <motion.div
+            className="mt-12 pt-8 border-t border-white/5"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            viewport={{ once: true }}
+          >
+            <div className="grid md:grid-cols-3 gap-8 text-center md:text-left">
+              <div>
+                <h4 className="text-white font-semibold mb-4">Built on Sui</h4>
+                <p className="text-text-muted text-sm leading-relaxed">
+                  Leveraging the power of Sui blockchain for lightning-fast, secure, and scalable DeFi trading.
+                </p>
+              </div>
+              
+              <div>
+                <h4 className="text-white font-semibold mb-4">AI-Powered</h4>
+                <p className="text-text-muted text-sm leading-relaxed">
+                  Advanced machine learning algorithms optimize your trading strategies in real-time.
+                </p>
+              </div>
+              
+              <div>
+                <h4 className="text-white font-semibold mb-4">Community First</h4>
+                <p className="text-text-muted text-sm leading-relaxed">
+                  Join a vibrant community of traders, developers, and DeFi enthusiasts.
+                </p>
+              </div>
             </div>
-            <div className="text-text-secondary">
-              © 2025 SuiBian. Building the future of decentralized trading.
-            </div>
-          </div>
+          </motion.div>
         </div>
       </footer>
     </div>
