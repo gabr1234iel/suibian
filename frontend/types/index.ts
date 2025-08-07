@@ -51,6 +51,8 @@ export interface AppContextType {
   userSalt: string | null;
   ephemeralKeypair: any | null; // Ed25519Keypair
   zkProof: any | null;
+  isZkLoginReady: boolean;
+  initializeZkLoginSession: () => Promise<{ nonce: string } | null>;
   login: (credentialResponse: any) => Promise<void>;
   logout: () => void;
   theme: Theme;

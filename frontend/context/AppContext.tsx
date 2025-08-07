@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { AppContextType, Theme, DecodedJwt, UserData } from "../types";
 import { jwtDecode } from "jwt-decode";
 import { SuiClient } from "@mysten/sui/client";
@@ -88,6 +88,12 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   const [userSalt, setUserSalt] = useState<string | null>(null);
   const [ephemeralKeypair, setEphemeralKeypair] = useState<Ed25519Keypair | null>(null);
   const [zkProof, setZkProof] = useState<any>(null);
+  
+  // Ref to prevent multiple zkLogin setups
+  const zkLoginSetupCompleted = useRef<boolean>(false);
+
+  // Helper to check if zkLogin session is fully initialized and ready
+  const isZkLoginReady = !!(ephemeralKeypair && nonce && randomness && maxEpoch);
 
   useEffect(() => {
     // Load theme from localStorage on component mount
@@ -108,49 +114,60 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  useEffect(() => {
-    const setupZkLogin = async () => {
-      try {
-        console.log('🔑 Setting up fresh zkLogin session...');
-        
-        // Clear any existing session data first
-        setIsLoggedIn(false);
-        setUserGoogleId(null);
-        setUserAddress(null);
-        setJwt(null);
-        setUserSalt(null);
-        setZkProof(null);
-        
-        // ALWAYS generate a fresh ephemeral keypair for each session
-        // This ensures the nonce in Google OAuth JWT will match
-        console.log('🔑 Generating fresh ephemeral keypair for this session...');
-        const keyPair = new Ed25519Keypair();
-        setEphemeralKeypair(keyPair);
-
-        const suiClient = new SuiClient({ url: SUI_DEVNET_RPC_URL });
-        const { epoch } = await suiClient.getLatestSuiSystemState();
-        const maxEpochValue = Number(epoch) + 2;
-        setMaxEpoch(maxEpochValue);
-
-        const randomnessValue = generateRandomness();
-        setRandomness(randomnessValue.toString());
-
-        const publicKey = keyPair.getPublicKey() as any;
-        const nonceValue = generateNonce(
-          publicKey,
-          maxEpochValue,
-          randomnessValue
-        );
-        setNonce(nonceValue);
-        
-        console.log('✅ Fresh zkLogin session initialized with nonce:', nonceValue);
-      } catch (error) {
-        console.error("Error setting up zkLogin:", error);
+  // Initialize zkLogin session (generate ephemeral keypair) - called when user wants to login
+  const initializeZkLoginSession = async (): Promise<{ nonce: string } | null> => {
+    try {
+      // Prevent multiple initializations
+      if (zkLoginSetupCompleted.current && ephemeralKeypair && nonce) {
+        console.log('🔑 zkLogin session already ready, using existing nonce:', nonce);
+        return { nonce };
       }
-    };
+      
+      console.log('🔑 Initializing fresh zkLogin session for login...');
+      
+      // Clear any existing session data first
+      setIsLoggedIn(false);
+      setUserGoogleId(null);
+      setUserAddress(null);
+      setJwt(null);
+      setUserSalt(null);
+      setZkProof(null);
+      
+      // Generate fresh ephemeral keypair ONLY when user wants to login
+      console.log('🔑 Generating fresh ephemeral keypair for this login session...');
+      const keyPair = new Ed25519Keypair();
 
-    setupZkLogin();
-  }, []); // Empty dependency array - only run once on mount
+      const suiClient = new SuiClient({ url: SUI_DEVNET_RPC_URL });
+      const { epoch } = await suiClient.getLatestSuiSystemState();
+      const maxEpochValue = Number(epoch) + 2;
+
+      const randomnessValue = generateRandomness();
+
+      const publicKey = keyPair.getPublicKey() as any;
+      const nonceValue = generateNonce(
+        publicKey,
+        maxEpochValue,
+        randomnessValue
+      );
+      
+      // Set all critical session data atomically
+      setEphemeralKeypair(keyPair);
+      setMaxEpoch(maxEpochValue);
+      setRandomness(randomnessValue.toString());
+      setNonce(nonceValue);
+      
+      // Mark setup as completed to prevent re-runs
+      zkLoginSetupCompleted.current = true;
+      
+      console.log('✅ zkLogin session initialized with nonce:', nonceValue);
+      console.log('🔒 This nonce is LOCKED for Google OAuth - will not change');
+      
+      return { nonce: nonceValue };
+    } catch (error) {
+      console.error("Error initializing zkLogin session:", error);
+      return null;
+    }
+  };
 
   useEffect(() => {
     if (!userAddress) return;
@@ -361,8 +378,17 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   };
 
   const login = async (credentialResponse: any): Promise<void> => {
+    console.log('🔑 Login attempt started with current nonce:', nonce);
+    
     if (!credentialResponse.credential || !nonce) {
       console.error("Login failed: No credential or nonce available.");
+      return;
+    }
+
+    // Critical: Check if zkLogin session is fully ready
+    if (!ephemeralKeypair || !randomness || !maxEpoch) {
+      console.error("Login failed: zkLogin session not ready yet. Please wait a moment and try again.");
+      alert("Please wait a moment for the session to initialize, then try logging in again.");
       return;
     }
 
@@ -371,6 +397,23 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     try {
       const decodedJwt = jwtDecode<DecodedJwt>(credentialResponse.credential);
       const googleId = decodedJwt.sub;
+      
+      // CRITICAL: Check nonce immediately before proceeding
+      console.log('🔍 JWT received with embedded nonce:', decodedJwt.nonce);
+      console.log('🔍 Current app nonce:', nonce);
+      
+      if (decodedJwt.nonce !== nonce) {
+        console.error('🚨 IMMEDIATE NONCE MISMATCH DETECTED!');
+        console.error('This means Google OAuth was initiated with a different nonce than current session');
+        console.error('JWT nonce:', decodedJwt.nonce);
+        console.error('App nonce:', nonce);
+        setIsLoadingUser(false);
+        alert('Session mismatch detected. Please refresh the page and try logging in again.');
+        return;
+      }
+      
+      console.log('✅ Nonce validation passed - proceeding with login');
+      
       setUserGoogleId(googleId);
 
       // Store JWT for blockchain transactions
@@ -505,28 +548,15 @@ This happens when the app generates new security keys but you're using an old lo
     setUserSalt(null);
     setZkProof(null);
     setEphemeralKeypair(null);
-
-    // Regenerate randomness/nonce for the next session
-    const setupNextLogin = async () => {
-      console.log('🔑 Logout: Generating new ephemeral keypair for next session...');
-      const keyPair = new Ed25519Keypair();
-      setEphemeralKeypair(keyPair);
-
-      const suiClient = new SuiClient({ url: SUI_DEVNET_RPC_URL });
-      const { epoch } = await suiClient.getLatestSuiSystemState();
-      const maxEpochValue = Number(epoch) + 2;
-      setMaxEpoch(maxEpochValue);
-      const randomnessValue = generateRandomness();
-      setRandomness(randomnessValue.toString());
-      const publicKey = keyPair.getPublicKey() as any;
-      const nonceValue = generateNonce(
-        publicKey,
-        maxEpochValue,
-        randomnessValue
-      );
-      setNonce(nonceValue);
-    };
-    setupNextLogin();
+    setNonce(null);
+    setRandomness(null);
+    setMaxEpoch(null);
+    
+    // Reset the setup flag to allow fresh initialization on next login
+    zkLoginSetupCompleted.current = false;
+    
+    console.log("🚪 User logged out - zkLogin session cleared");
+    console.log("💡 New ephemeral keypair will be generated when user clicks login");
   };
 
   const toggleTheme = (): void => {
@@ -548,6 +578,8 @@ This happens when the app generates new security keys but you're using an old lo
     userSalt,
     ephemeralKeypair,
     zkProof,
+    isZkLoginReady,
+    initializeZkLoginSession,
     login,
     logout,
     theme,
