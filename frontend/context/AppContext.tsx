@@ -121,7 +121,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         console.log('🔑 Generating new ephemeral keypair for session...');
         const keyPair = new Ed25519Keypair();
         setEphemeralKeypair(keyPair);
-        
+
         const suiClient = new SuiClient({ url: SUI_DEVNET_RPC_URL });
         const { epoch } = await suiClient.getLatestSuiSystemState();
         const maxEpochValue = Number(epoch) + 2;
@@ -260,7 +260,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   const generateAndCacheZkProof = async (saltValue?: string, jwtValue?: string): Promise<void> => {
     const currentSalt = saltValue || userSalt;
     const currentJwt = jwtValue || jwt;
-    
+
     // Debug: Log all parameters to see what's missing
     console.log('zkLogin parameters check:', {
       jwt: !!currentJwt,
@@ -269,7 +269,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       currentSalt: !!currentSalt,
       maxEpoch: !!maxEpoch
     });
-    
+
     if (!currentJwt || !ephemeralKeypair || !randomness || !currentSalt || !maxEpoch) {
       console.error('Missing zkLogin parameters:', {
         jwt: !currentJwt ? 'MISSING' : 'OK',
@@ -283,7 +283,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
     try {
       console.log('🔄 Generating zkProof for session (this may take a few seconds)...');
-      
+
       // Verify JWT nonce matches current nonce before proceeding
       const decodedJwt = jwtDecode<DecodedJwt>(currentJwt);
       if (decodedJwt.nonce !== nonce) {
@@ -293,10 +293,10 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         });
         throw new Error('JWT nonce mismatch - please login again with fresh authentication');
       }
-      
+
       const { getExtendedEphemeralPublicKey } = await import('@mysten/zklogin');
       console.log('zkProof generation using ephemeral key:', ephemeralKeypair.getPublicKey().toSuiAddress());
-      
+
       const extendedEphemeralPublicKey = getExtendedEphemeralPublicKey(
         ephemeralKeypair.getPublicKey()
       );
@@ -322,7 +322,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         throw new Error(`Prover service failed: ${response.status} - ${errorText}`);
       }
 
-            const proof = await response.json();
+      const proof = await response.json();
       console.log('🔍 zkProof structure received:', {
         keys: Object.keys(proof),
         hasProofPoints: !!proof.proofPoints,
@@ -331,7 +331,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         issBase64DetailsKeys: proof.issBase64Details ? Object.keys(proof.issBase64Details) : 'none'
       });
       console.log('🔍 Full zkProof object:', JSON.stringify(proof, null, 2));
-      
+
       setZkProof(proof);
 
       console.log('✅ zkProof generated and cached for session!');
@@ -353,7 +353,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       const decodedJwt = jwtDecode<DecodedJwt>(credentialResponse.credential);
       const googleId = decodedJwt.sub;
       setUserGoogleId(googleId);
-      
+
       // Store JWT for blockchain transactions
       setJwt(credentialResponse.credential);
 
@@ -371,28 +371,28 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         const decryptedSalt = decryptSalt(existingUser.salt);
         setUserSalt(decryptedSalt); // Store for blockchain transactions
 
-                        const zkLoginUserAddress = computeZkLoginAddress({
-                  claimName: "sub",
-                  claimValue: googleId,
-                  userSalt: BigInt(decryptedSalt),
-                  iss: decodedJwt.iss,
-                  aud: decodedJwt.aud,
-                });
+        const zkLoginUserAddress = computeZkLoginAddress({
+          claimName: "sub",
+          claimValue: googleId,
+          userSalt: BigInt(decryptedSalt),
+          iss: decodedJwt.iss,
+          aud: decodedJwt.aud,
+        });
 
-                console.log('🏠 Computed zkLogin address with:', {
-                  claimName: "sub",
-                  claimValue: googleId,
-                  userSalt: decryptedSalt,
-                  iss: decodedJwt.iss,
-                  aud: decodedJwt.aud,
-                  computedAddress: zkLoginUserAddress
-                });
+        console.log('🏠 Computed zkLogin address with:', {
+          claimName: "sub",
+          claimValue: googleId,
+          userSalt: decryptedSalt,
+          iss: decodedJwt.iss,
+          aud: decodedJwt.aud,
+          computedAddress: zkLoginUserAddress
+        });
 
-                setUserAddress(zkLoginUserAddress);
-        
+        setUserAddress(zkLoginUserAddress);
+
         // Generate zkProof ONCE per session (expensive operation)
         await generateAndCacheZkProof(decryptedSalt, credentialResponse.credential);
-        
+
         setIsLoggedIn(true);
 
         // Update last login time
@@ -419,10 +419,10 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         });
 
         setUserAddress(zkLoginUserAddress);
-        
+
         // Generate zkProof ONCE per session
         await generateAndCacheZkProof(newSalt, credentialResponse.credential);
-        
+
         setIsLoggedIn(true);
 
         // Save new user to Firebase
@@ -453,7 +453,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         if (error instanceof Error) {
           console.error("Error message:", error.message);
           console.error("Error stack:", error.stack);
-          
+
           // Handle nonce mismatch specifically
           if (error.message.includes('JWT nonce mismatch')) {
             alert(
@@ -465,8 +465,7 @@ This happens when the app generates new security keys but you're using an old lo
           }
         }
         alert(
-          `Error during login: ${
-            error instanceof Error ? error.message : "Unknown error"
+          `Error during login: ${error instanceof Error ? error.message : "Unknown error"
           }. Please try again.`
         );
         return; // Exit if non-Firebase error
@@ -493,7 +492,7 @@ This happens when the app generates new security keys but you're using an old lo
       console.log('🔑 Logout: Generating new ephemeral keypair for next session...');
       const keyPair = new Ed25519Keypair();
       setEphemeralKeypair(keyPair);
-      
+
       const suiClient = new SuiClient({ url: SUI_DEVNET_RPC_URL });
       const { epoch } = await suiClient.getLatestSuiSystemState();
       const maxEpochValue = Number(epoch) + 2;
