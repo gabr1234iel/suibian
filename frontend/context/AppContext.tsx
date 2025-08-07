@@ -111,14 +111,19 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   useEffect(() => {
     const setupZkLogin = async () => {
       try {
-        // Only run setup if we don't already have an ephemeral keypair
-        // This prevents overwriting existing keypairs that were used for zkProof generation
-        if (ephemeralKeypair) {
-          console.log('🔑 Ephemeral keypair already exists, skipping setup');
-          return;
-        }
-
-        console.log('🔑 Generating new ephemeral keypair for session...');
+        console.log('🔑 Setting up fresh zkLogin session...');
+        
+        // Clear any existing session data first
+        setIsLoggedIn(false);
+        setUserGoogleId(null);
+        setUserAddress(null);
+        setJwt(null);
+        setUserSalt(null);
+        setZkProof(null);
+        
+        // ALWAYS generate a fresh ephemeral keypair for each session
+        // This ensures the nonce in Google OAuth JWT will match
+        console.log('🔑 Generating fresh ephemeral keypair for this session...');
         const keyPair = new Ed25519Keypair();
         setEphemeralKeypair(keyPair);
 
@@ -137,6 +142,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
           randomnessValue
         );
         setNonce(nonceValue);
+        
+        console.log('✅ Fresh zkLogin session initialized with nonce:', nonceValue);
       } catch (error) {
         console.error("Error setting up zkLogin:", error);
       }
@@ -287,11 +294,23 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       // Verify JWT nonce matches current nonce before proceeding
       const decodedJwt = jwtDecode<DecodedJwt>(currentJwt);
       if (decodedJwt.nonce !== nonce) {
-        console.warn('JWT nonce mismatch detected:', {
+        console.warn('🚨 JWT nonce mismatch detected - session expired!', {
           jwtNonce: decodedJwt.nonce,
           currentNonce: nonce
         });
-        throw new Error('JWT nonce mismatch - please login again with fresh authentication');
+        
+        // Clear all session data and force re-login
+        console.log('🔄 Clearing session data and forcing re-login...');
+        setIsLoggedIn(false);
+        setUserGoogleId(null);
+        setUserAddress(null);
+        setJwt(null);
+        setUserSalt(null);
+        setZkProof(null);
+        setEphemeralKeypair(null);
+        
+        alert('Your session has expired. Please login again.');
+        throw new Error('Session expired - nonce mismatch detected. User has been logged out.');
       }
 
       const { getExtendedEphemeralPublicKey } = await import('@mysten/zklogin');
