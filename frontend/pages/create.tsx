@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useAppContext } from "../context/AppContext";
 import { useSuiTransactions } from "../hooks/useSuiTransactions";
-import NavBar from "../components/NavBar";
+import Header from "@/components/Header";
 
 interface AgentFormData {
   name: string;
@@ -143,7 +143,7 @@ Please check the console for detailed error information and try again.`);
 
   return (
     <div className="min-h-screen bg-dark-900 text-white">
-      <NavBar />
+      <Header />
 
       <div className="max-w-4xl mx-auto px-6 py-8 pt-24">
         <div className="mb-8">

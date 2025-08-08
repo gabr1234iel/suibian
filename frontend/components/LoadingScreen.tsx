@@ -1,12 +1,12 @@
-import React from 'react';
+import React from "react";
 
 const LoadingScreen: React.FC = () => {
   return (
     <div className="fixed inset-0 bg-dark-900 flex items-center justify-center z-50">
       {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-blue opacity-10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-purple opacity-10 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 opacity-30 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-green-500/10 opacity-30 rounded-full blur-3xl"></div>
       </div>
 
       <div className="relative z-10 text-center">
@@ -22,12 +22,12 @@ const LoadingScreen: React.FC = () => {
             className="w-24 h-auto"
           >
             <path
-              stroke="#4B22B5"
+              stroke="#3B82F6"
               d="M87.3629 108.433L49.1073 85.3765C47.846 84.6163 45.8009 84.6163 44.5395 85.3765L6.28392 108.433C5.02255 109.194 5.02255 110.426 6.28392 111.187L44.5395 134.243C45.8009 135.004 47.846 135.004 49.1073 134.243L87.3629 111.187C88.6243 110.426 88.6243 109.194 87.3629 108.433Z"
               id="line-v1"
             />
             <path
-              stroke="#5728CC"
+              stroke="#10B981"
               d="M91.0928 95.699L49.2899 70.5042C47.9116 69.6734 45.6769 69.6734 44.2986 70.5042L2.49568 95.699C1.11735 96.5298 1.11735 97.8767 2.49568 98.7074L44.2986 123.902C45.6769 124.733 47.9116 124.733 49.2899 123.902L91.0928 98.7074C92.4712 97.8767 92.4712 96.5298 91.0928 95.699Z"
               id="line-v2"
             />
@@ -47,7 +47,7 @@ const LoadingScreen: React.FC = () => {
                 y="50"
                 x="13"
                 maskUnits="userSpaceOnUse"
-                style={{ maskType: 'luminance' }}
+                style={{ maskType: "luminance" }}
                 id="mask0_204_217"
               >
                 <path
@@ -66,7 +66,7 @@ const LoadingScreen: React.FC = () => {
                   y="56"
                   x="23"
                   maskUnits="userSpaceOnUse"
-                  style={{ maskType: 'luminance' }}
+                  style={{ maskType: "luminance" }}
                   id="mask1_204_217"
                 >
                   <path
@@ -168,31 +168,27 @@ const LoadingScreen: React.FC = () => {
             </g>
             <g id="panel-rigth">
               <mask fill="white" id="path-26-inside-1_204_217">
-                <path
-                  d="M72 91.8323C72 90.5121 72.9268 88.9068 74.0702 88.2467L87.9298 80.2448C89.0731 79.5847 90 80.1198 90 81.44V81.44C90 82.7602 89.0732 84.3656 87.9298 85.0257L74.0702 93.0275C72.9268 93.6876 72 93.1525 72 91.8323V91.8323Z"
-                />
+                <path d="M72 91.8323C72 90.5121 72.9268 88.9068 74.0702 88.2467L87.9298 80.2448C89.0731 79.5847 90 80.1198 90 81.44V81.44C90 82.7602 89.0732 84.3656 87.9298 85.0257L74.0702 93.0275C72.9268 93.6876 72 93.1525 72 91.8323V91.8323Z" />
               </mask>
               <path
-                fill="#91DDFB"
+                fill="#34D399"
                 d="M72 91.8323C72 90.5121 72.9268 88.9068 74.0702 88.2467L87.9298 80.2448C89.0731 79.5847 90 80.1198 90 81.44V81.44C90 82.7602 89.0732 84.3656 87.9298 85.0257L74.0702 93.0275C72.9268 93.6876 72 93.1525 72 91.8323V91.8323Z"
               />
               <path
                 mask="url(#path-26-inside-1_204_217)"
-                fill="#489CB7"
+                fill="#10B981"
                 d="M72 89.4419L90 79.0496L72 89.4419ZM90.6928 81.44C90.6928 82.9811 89.6109 84.8551 88.2762 85.6257L74.763 93.4275C73.237 94.3085 72 93.5943 72 91.8323V91.8323C72 92.7107 72.9268 92.8876 74.0702 92.2275L87.9298 84.2257C88.6905 83.7865 89.3072 82.7184 89.3072 81.84L90.6928 81.44ZM72 94.2227V89.4419V94.2227ZM88.2762 80.0448C89.6109 79.2742 90.6928 79.8989 90.6928 81.44V81.44C90.6928 82.9811 89.6109 84.8551 88.2762 85.6257L87.9298 84.2257C88.6905 83.7865 89.3072 82.7184 89.3072 81.84V81.84C89.3072 80.5198 88.6905 79.8056 87.9298 80.2448L88.2762 80.0448Z"
               />
               <mask fill="white" id="path-28-inside-2_204_217">
-                <path
-                  d="M67 94.6603C67 93.3848 67.8954 91.8339 69 91.1962V91.1962C70.1046 90.5584 71 91.0754 71 92.3509V92.5129C71 93.7884 70.1046 95.3393 69 95.977V95.977C67.8954 96.6147 67 96.0978 67 94.8223V94.6603Z"
-                />
+                <path d="M67 94.6603C67 93.3848 67.8954 91.8339 69 91.1962V91.1962C70.1046 90.5584 71 91.0754 71 92.3509V92.5129C71 93.7884 70.1046 95.3393 69 95.977V95.977C67.8954 96.6147 67 96.0978 67 94.8223V94.6603Z" />
               </mask>
               <path
-                fill="#91DDFB"
+                fill="#34D399"
                 d="M67 94.6603C67 93.3848 67.8954 91.8339 69 91.1962V91.1962C70.1046 90.5584 71 91.0754 71 92.3509V92.5129C71 93.7884 70.1046 95.3393 69 95.977V95.977C67.8954 96.6147 67 96.0978 67 94.8223V94.6603Z"
               />
               <path
                 mask="url(#path-28-inside-2_204_217)"
-                fill="#489CB7"
+                fill="#10B981"
                 d="M67 92.3509L71 90.0415L67 92.3509ZM71.6928 92.5129C71.6928 94.0093 70.6423 95.8288 69.3464 96.577L69.3464 96.577C68.0505 97.3252 67 96.7187 67 95.2223V94.8223C67 95.6559 67.8954 95.8147 69 95.177L69 95.177C69.7219 94.7602 70.3072 93.7465 70.3072 92.9129L71.6928 92.5129ZM67 97.1317V92.3509V97.1317ZM69.2762 91.0367C70.6109 90.2661 71.6928 90.8908 71.6928 92.4319V92.5129C71.6928 94.0093 70.6423 95.8288 69.3464 96.577L69 95.177C69.7219 94.7602 70.3072 93.7465 70.3072 92.9129V92.7509C70.3072 91.4754 69.7219 90.7794 69 91.1962L69.2762 91.0367Z"
               />
             </g>
@@ -205,8 +201,8 @@ const LoadingScreen: React.FC = () => {
                 x1="1.00946"
                 id="paint0_linear_204_217"
               >
-                <stop stopColor="#5727CC" />
-                <stop stopColor="#4354BF" offset="1" />
+                <stop stopColor="#10B981" />
+                <stop stopColor="#3B82F6" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -216,9 +212,9 @@ const LoadingScreen: React.FC = () => {
                 x1="92.5"
                 id="paint1_linear_204_217"
               >
-                <stop stopColor="#4559C4" />
-                <stop stopColor="#332C94" offset="0.29" />
-                <stop stopColor="#5727CB" offset="1" />
+                <stop stopColor="#3B82F6" />
+                <stop stopColor="#1E40AF" offset="0.29" />
+                <stop stopColor="#10B981" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -228,8 +224,8 @@ const LoadingScreen: React.FC = () => {
                 x1="92.5"
                 id="paint2_linear_204_217"
               >
-                <stop stopColor="#91DDFB" />
-                <stop stopColor="#8841D5" offset="1" />
+                <stop stopColor="#60A5FA" />
+                <stop stopColor="#059669" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -239,8 +235,8 @@ const LoadingScreen: React.FC = () => {
                 x1="43.5482"
                 id="paint3_linear_204_217"
               >
-                <stop stopColor="#5927CE" />
-                <stop stopColor="#91DDFB" offset="1" />
+                <stop stopColor="#10B981" />
+                <stop stopColor="#60A5FA" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -250,8 +246,8 @@ const LoadingScreen: React.FC = () => {
                 x1="50.0323"
                 id="paint4_linear_204_217"
               >
-                <stop stopColor="#5927CE" />
-                <stop stopColor="#91DDFB" offset="1" />
+                <stop stopColor="#10B981" />
+                <stop stopColor="#60A5FA" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -261,8 +257,8 @@ const LoadingScreen: React.FC = () => {
                 x1="40.3062"
                 id="paint5_linear_204_217"
               >
-                <stop stopColor="#5927CE" />
-                <stop stopColor="#91DDFB" offset="1" />
+                <stop stopColor="#10B981" />
+                <stop stopColor="#60A5FA" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -272,8 +268,8 @@ const LoadingScreen: React.FC = () => {
                 x1="50.7527"
                 id="paint6_linear_204_217"
               >
-                <stop stopColor="#5927CE" />
-                <stop stopColor="#91DDFB" offset="1" />
+                <stop stopColor="#10B981" />
+                <stop stopColor="#60A5FA" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -283,8 +279,8 @@ const LoadingScreen: React.FC = () => {
                 x1="48.5913"
                 id="paint7_linear_204_217"
               >
-                <stop stopColor="#5927CE" />
-                <stop stopColor="#91DDFB" offset="1" />
+                <stop stopColor="#10B981" />
+                <stop stopColor="#60A5FA" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -294,8 +290,8 @@ const LoadingScreen: React.FC = () => {
                 x1="52.9153"
                 id="paint8_linear_204_217"
               >
-                <stop stopColor="#5927CE" />
-                <stop stopColor="#91DDFB" offset="1" />
+                <stop stopColor="#10B981" />
+                <stop stopColor="#60A5FA" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -305,8 +301,8 @@ const LoadingScreen: React.FC = () => {
                 x1="52.1936"
                 id="paint9_linear_204_217"
               >
-                <stop stopColor="#5927CE" />
-                <stop stopColor="#91DDFB" offset="1" />
+                <stop stopColor="#10B981" />
+                <stop stopColor="#60A5FA" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -316,8 +312,8 @@ const LoadingScreen: React.FC = () => {
                 x1="57.2367"
                 id="paint10_linear_204_217"
               >
-                <stop stopColor="#5927CE" />
-                <stop stopColor="#91DDFB" offset="1" />
+                <stop stopColor="#10B981" />
+                <stop stopColor="#60A5FA" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -327,8 +323,8 @@ const LoadingScreen: React.FC = () => {
                 x1="43.9084"
                 id="paint11_linear_204_217"
               >
-                <stop stopColor="#5927CE" />
-                <stop stopColor="#91DDFB" offset="1" />
+                <stop stopColor="#10B981" />
+                <stop stopColor="#60A5FA" offset="1" />
               </linearGradient>
               <linearGradient
                 gradientUnits="userSpaceOnUse"
@@ -338,7 +334,7 @@ const LoadingScreen: React.FC = () => {
                 x1="67.8638"
                 id="paint12_linear_204_217"
               >
-                <stop stopColor="#97E6FF" />
+                <stop stopColor="#60A5FA" />
                 <stop stopOpacity="0" stopColor="white" offset="1" />
               </linearGradient>
               <linearGradient
@@ -349,7 +345,7 @@ const LoadingScreen: React.FC = () => {
                 x1="36.2597"
                 id="paint13_linear_204_217"
               >
-                <stop stopColor="#97E6FF" />
+                <stop stopColor="#60A5FA" />
                 <stop stopOpacity="0" stopColor="white" offset="1" />
               </linearGradient>
             </defs>
@@ -358,7 +354,7 @@ const LoadingScreen: React.FC = () => {
 
         {/* Brand */}
         <div className="flex items-center justify-center space-x-3 mb-6">
-          <span className="text-4xl font-bold bg-gradient-to-r from-gradient-blue to-gradient-purple bg-clip-text text-transparent">
+          <span className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">
             SuiBian
           </span>
         </div>
@@ -369,9 +365,18 @@ const LoadingScreen: React.FC = () => {
             Initializing Trading Platform...
           </p>
           <div className="flex items-center justify-center space-x-2">
-            <div className="animate-bounce w-2 h-2 bg-gradient-blue rounded-full" style={{ animationDelay: '0ms' }}></div>
-            <div className="animate-bounce w-2 h-2 bg-gradient-purple rounded-full" style={{ animationDelay: '150ms' }}></div>
-            <div className="animate-bounce w-2 h-2 bg-gradient-cyan rounded-full" style={{ animationDelay: '300ms' }}></div>
+            <div
+              className="animate-bounce w-2 h-2 bg-blue-500 rounded-full"
+              style={{ animationDelay: "0ms" }}
+            ></div>
+            <div
+              className="animate-bounce w-2 h-2 bg-green-500 rounded-full"
+              style={{ animationDelay: "150ms" }}
+            ></div>
+            <div
+              className="animate-bounce w-2 h-2 bg-blue-400 rounded-full"
+              style={{ animationDelay: "300ms" }}
+            ></div>
           </div>
         </div>
       </div>
@@ -383,7 +388,8 @@ const LoadingScreen: React.FC = () => {
         }
 
         @keyframes fade-particles {
-          0%, 100% {
+          0%,
+          100% {
             opacity: 1;
           }
           50% {
@@ -406,7 +412,8 @@ const LoadingScreen: React.FC = () => {
         }
 
         @keyframes bounce-lines {
-          0%, 100% {
+          0%,
+          100% {
             transform: translateY(0);
           }
           50% {

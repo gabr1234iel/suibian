@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/router";
 import { useAppContext } from "../context/AppContext";
 import { agents } from "../data/agents";
-import NavBar from "../components/NavBar";
 import { motion } from "framer-motion";
 import {
   TrendingUp,
@@ -15,6 +14,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useUserTradingAgents } from "../hooks/useTradingAgents";
+import Header from "@/components/Header";
 
 const DashboardPage: React.FC = () => {
   const { isLoggedIn, userAddress } = useAppContext();
@@ -110,7 +110,7 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
       {/* Navigation */}
-      <NavBar />
+      <Header />
 
       {/* Hero Section with Glass Morphism */}
       <motion.div

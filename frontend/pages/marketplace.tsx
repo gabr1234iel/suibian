@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { agents } from "../data/agents";
 import AgentCard from "../components/AgentCard";
-import NavBar from "../components/NavBar";
 import { Agent } from "../types";
 import { useTradingAgents } from "../hooks/useTradingAgents";
 import { TradingAgent } from "../api/marketplaceApi";
+import Header from "@/components/Header";
 
 const MarketplacePage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -122,7 +122,7 @@ const MarketplacePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-dark-900 text-white mt-8">
       {/* Navigation */}
-      <NavBar />
+      <Header />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8 pt-24">
