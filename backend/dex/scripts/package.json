@@ -1,0 +1,29 @@
+{
+    "name": "sui-dex-interaction",
+    "version": "1.0.0",
+    "description": "TypeScript script to interact with Sui DEX smart contract",
+    "main": "index.ts",
+    "scripts": {
+      "build": "tsc",
+      "start": "tsx index.ts",
+      "dev": "tsx watch index.ts",
+      "test": "jest"
+    },
+    "dependencies": {
+      "@mysten/sui.js": "^0.54.0"
+    },
+    "devDependencies": {
+      "@types/node": "^20.0.0",
+      "tsx": "^4.0.0",
+      "typescript": "^5.0.0"
+    },
+    "keywords": [
+      "sui",
+      "blockchain",
+      "dex",
+      "defi",
+      "typescript"
+    ],
+    "author": "Your Name",
+    "license": "MIT"
+  }
