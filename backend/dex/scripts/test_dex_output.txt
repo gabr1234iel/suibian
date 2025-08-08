@@ -1,0 +1,77 @@
+jiayi@LAPTOP-SESSTBMF:/mnt/c/Users/User/Documents/buidl/devmatch/suibian/backend/dex/scripts$ node test_dex.js
+User address: 0x39a36b6dbc603558147a3e7520de6e0a76e6bff28f37a6d5fdd1b7015f01f2be
+🌊 DEX Interaction Demo Starting...
+
+📋 Make sure pool is bootstrapped first!
+
+
+👤 Creating user balance object...
+✅ User balance created
+Transaction: Bz6okztS5en3Y5i4yM9K2A9k4e41fS5yzBGL2T5UVrSq
+📝 UserBalance ID: 0x63cf5472f2038ce3d25dbb27711d574ad79325827a321f43269d8b70251ce58c
+
+📊 Initial State:
+
+💰 Wallet Balances:
+SUI: 9.9261 SUI
+USDC: 0.00 USDC (in UserBalance)
+
+📊 Pool Info:
+SUI Reserve: 9.89 SUI
+USDC Reserve: 16.20 USDC
+Price: $1.6378 USDC per SUI
+
+🏦 Minting 100 USDC to user balance...
+✅ Successfully minted 100 USDC
+Transaction: ArxqAX3MH2UsR2qvFQFxX6Ax7jinsCYdcs5vvnJ7NiEi
+
+💰 Wallet Balances:
+SUI: 9.9261 SUI
+USDC: 100.00 USDC (in UserBalance)
+
+🔄 Swapping 0.5 SUI for USDC...
+✅ Swap completed
+Transaction: GC8K5zRg4aVfr7iasbfWC5vuhnfiz3PGrewq5zbQvoug
+📈 Received: 0.7773 USDC
+💸 Fee: 0.001500 SUI
+
+📊 Pool Info:
+SUI Reserve: 10.39 SUI
+USDC Reserve: 15.42 USDC
+Price: $1.4842 USDC per SUI
+
+💰 Wallet Balances:
+SUI: 9.4241 SUI
+USDC: 100.78 USDC (in UserBalance)
+
+🔄 Swapping 50 USDC for SUI...
+✅ Swap completed
+Transaction: DVDUHfJhBri8Sgk3q1kVWGULratkBoYR52a9UZfXb29p
+📈 Received: 7.935989 SUI
+💸 Fee: 0.1500 USDC
+
+📊 Pool Info:
+SUI Reserve: 2.46 SUI
+USDC Reserve: 65.42 USDC
+Price: $26.6460 USDC per SUI
+
+💰 Wallet Balances:
+SUI: 17.3580 SUI
+USDC: 50.78 USDC (in UserBalance)
+
+🔄 Swapping 0.3 SUI for USDC...
+✅ Swap completed
+Transaction: 7e2cLMEHCPpHGL2r8jNErWYd697FocEgjdUbRFdNYq3r
+📈 Received: 7.1044 USDC
+💸 Fee: 0.000900 SUI
+
+📊 Pool Info:
+SUI Reserve: 2.76 SUI
+USDC Reserve: 58.32 USDC
+Price: $21.1662 USDC per SUI
+
+💰 Wallet Balances:
+SUI: 17.0580 SUI
+USDC: 57.88 USDC (in UserBalance)
+
+🎉 Demo completed successfully!
