@@ -5,6 +5,7 @@ import { Agent } from "../types";
 import { useTradingAgents } from "../hooks/useTradingAgents";
 import { TradingAgent } from "../api/marketplaceApi";
 import Header from "@/components/Header";
+import ReviewsCarousel from "@/components/ReviewsCarousel";
 
 const MarketplacePage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -52,9 +53,7 @@ const MarketplacePage: React.FC = () => {
         name: fbAgent.name,
         creator: fbAgent.creator,
         strategy: `Agent ID: ${fbAgent.agent_id.slice(0, 10)}...`,
-        description: `Created by ${fbAgent.creator.slice(0, 8)}... • ${
-          fbAgent.total_subscribers
-        } subscribers`,
+        description: `${fbAgent.total_subscribers} subscribers`,
         riskLevel: fbAgent.is_active
           ? "Low"
           : ("High" as "Low" | "Medium" | "High"), // Simple mapping for demo
@@ -120,7 +119,16 @@ const MarketplacePage: React.FC = () => {
   }, [allAgents, searchTerm, selectedRisk, sortBy]);
 
   return (
-    <div className="min-h-screen bg-dark-900 text-white mt-8">
+    <div
+      className="min-h-screen bg-dark-800 text-white p-8 relative overflow-hidden"
+      style={{
+        backgroundImage:
+          "radial-gradient(ellipse 60% 6% at 0% 8%, rgba(0,255,180,0.18) 40%, transparent 90%)",
+        backgroundRepeat: "no-repeat",
+        backgroundAttachment: "scroll", // Changed from 'fixed' to 'scroll'
+        imageRendering: "pixelated", // This will pixelate the background image
+      }}
+    >
       {/* Navigation */}
       <Header />
 
@@ -131,178 +139,254 @@ const MarketplacePage: React.FC = () => {
           <h1 className="text-3xl font-bold text-white mb-2">
             Trading Strategy Marketplace
           </h1>
-          <p className="text-text-secondary">
+          <p className="text-sm">
             Discover and subscribe to automated trading strategies from expert
             creators
           </p>
         </div>
 
-        {/* Filters and Search */}
-        <div className="bg-glass-dark backdrop-blur-xl border border-white/10 rounded-xl p-6 mb-8 hover:border-white/20 transition-all duration-300">
-          <form onSubmit={handleSearchSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Search */}
-              <div className="md:col-span-2">
-                <label
-                  htmlFor="search"
-                  className="block text-sm font-medium text-white mb-2"
-                >
-                  Search Strategies
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    id="search"
-                    value={searchTerm}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    placeholder="Search by name, description, or tags..."
-                    className="flex-1 px-4 py-2 border border-white/20 rounded-lg bg-white/10 text-white placeholder-text-secondary focus:ring-2 focus:ring-primary-500 focus:border-transparent backdrop-blur-sm"
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                  >
-                    Search
-                  </button>
-                  {searchTerm && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchTerm("");
-                        clearSearch();
-                      }}
-                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
+        {/* Reviews Carousel */}
+        <div className="w-full mb-12">
+          <ReviewsCarousel />
+        </div>
 
-              {/* Risk Level Filter */}
-              <div>
-                <label
-                  htmlFor="risk"
-                  className="block text-sm font-medium text-white mb-2"
-                >
-                  Risk Level
-                </label>
-                <select
-                  id="risk"
-                  value={selectedRisk}
-                  onChange={(e) => setSelectedRisk(e.target.value)}
-                  className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/10 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent backdrop-blur-sm"
-                >
-                  <option value="All">All Levels</option>
-                  <option value="Low">Low Risk</option>
-                  <option value="Medium">Medium Risk</option>
-                  <option value="High">High Risk</option>
-                </select>
-              </div>
-
-              {/* Sort By */}
-              <div>
-                <label
-                  htmlFor="sort"
-                  className="block text-sm font-medium text-white mb-2"
-                >
-                  Sort By
-                </label>
-                <select
-                  id="sort"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/10 text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent backdrop-blur-sm"
-                >
-                  <option value="totalReturn">Total Return</option>
-                  <option value="winRate">Win Rate</option>
-                  <option value="subscribers">Popularity</option>
-                  <option value="fee">Lowest Fee</option>
-                </select>
+        {/* Hot Agents Section */}
+        <div className="w-full mt-12 mb-10">
+          <h2 className="text-2xl font-semibold text-white mb-4">Hot Agents</h2>
+          <div className="flex flex-col md:flex-row gap-6 w-full">
+            {/* Left Table: 1-5 */}
+            <div className="flex-1">
+              <div className="bg-glass-dark backdrop-blur-xl border border-white/10 rounded-xl p-6 shadow-lg">
+                <table className="min-w-full text-left">
+                  <thead>
+                    <tr>
+                      <th className="px-3 py-2 text-sm font-medium text-white/70">
+                        #
+                      </th>
+                      <th className="px-3 py-2 text-sm font-medium text-white/70">
+                        Name
+                      </th>
+                      <th className="px-3 py-2 text-sm font-medium text-white/70">
+                        Subscribers
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allAgents
+                      .slice()
+                      .sort((a, b) => b.subscribers - a.subscribers)
+                      .slice(0, 5)
+                      .map((agent, idx) => (
+                        <tr
+                          key={agent.id}
+                          className="border-b border-white/10 last:border-0 cursor-pointer hover:bg-white/5 transition"
+                          onClick={() => console.log(agent.id)}
+                        >
+                          <td className="px-3 py-2">{idx + 1}</td>
+                          <td className="px-3 py-2">{agent.name}</td>
+                          <td className="px-3 py-2">{agent.subscribers}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-          </form>
-        </div>
-
-        {/* Results Count */}
-        <div className="mb-6">
-          <p className="text-text-secondary">
-            Showing {filteredAndSortedAgents.length} of {allAgents.length}{" "}
-            strategies
-            {loading && " (Loading more...)"}
-          </p>
-        </div>
-
-        {/* Loading State */}
-        {loading && firebaseAgents.length === 0 && (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-            <span className="ml-3 text-white">Loading trading agents...</span>
+            {/* Right Table: 6-10 (hidden on mobile) */}
+            <div className="flex-1 hidden md:block">
+              <div className="bg-glass-dark backdrop-blur-xl border border-white/10 rounded-xl p-6 shadow-lg">
+                <table className="min-w-full text-left">
+                  <thead>
+                    <tr>
+                      <th className="px-3 py-2 text-sm font-medium text-white/70">
+                        #
+                      </th>
+                      <th className="px-3 py-2 text-sm font-medium text-white/70">
+                        Name
+                      </th>
+                      <th className="px-3 py-2 text-sm font-medium text-white/70">
+                        Subscribers
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allAgents
+                      .slice()
+                      .sort((a, b) => b.subscribers - a.subscribers)
+                      .slice(5, 10)
+                      .map((agent, idx) => (
+                        <tr
+                          key={agent.id}
+                          className="border-b border-white/10 last:border-0 cursor-pointer hover:bg-white/5 transition"
+                          onClick={() => console.log(agent.id)}
+                        >
+                          <td className="px-3 py-2">{idx + 6}</td>
+                          <td className="px-3 py-2">{agent.name}</td>
+                          <td className="px-3 py-2">{agent.subscribers}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
 
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 mb-6">
-            <p className="text-red-400 mb-2">Error loading agents: {error}</p>
+        {/* New Agents Section */}
+        <div className="w-full mb-12">
+          <h2 className="text-2xl font-semibold text-white mb-4">New Agents</h2>
+          <div className="relative min-h-[420px]">
+            <div className="overflow-x-auto">
+              <div className="flex gap-6" id="new-agents-carousel">
+                {allAgents
+                  .slice()
+                  .sort(
+                    (a, b) =>
+                      new Date(b.createdAt).getTime() -
+                      new Date(a.createdAt).getTime()
+                  )
+                  .slice(0, 10)
+                  .map((agent) => (
+                    <div
+                      key={agent.id}
+                      className="min-w-[320px] max-w-xs w-full flex-shrink-0"
+                      style={{
+                        width: "100%",
+                        maxWidth: "350px",
+                        minWidth: "260px",
+                      }}
+                    >
+                      <div
+                        className="bg-glass-dark backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-lg h-full flex flex-col
+            md:p-6
+            "
+                      >
+                        <div className="flex items-center mb-3">
+                          <div className="flex-1">
+                            <h3 className="text-lg md:text-xl font-bold text-white truncate">
+                              {agent.name}
+                            </h3>
+                          </div>
+                          <span className="ml-2 px-2 py-1 text-xs rounded bg-primary-700/30 text-primary-300">
+                            NEW
+                          </span>
+                        </div>
+                        <p className="text-xs md:text-sm text-white/70 mb-2 line-clamp-2">
+                          {agent.description}
+                        </p>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {agent.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="bg-white/10 text-xs md:text-sm text-white/70 px-2 py-1 rounded"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex flex-col gap-1 text-xs md:text-sm text-white/80 mb-2">
+                          <div>
+                            <span className="font-medium">Risk:</span>{" "}
+                            {agent.riskLevel}
+                          </div>
+                          <div>
+                            <span className="font-medium">Fee:</span>{" "}
+                            {agent.fee} SUI
+                          </div>
+                          <div>
+                            <span className="font-medium">Subscribers:</span>{" "}
+                            {agent.subscribers}
+                          </div>
+                          <div>
+                            <span className="font-medium">Total Return:</span>{" "}
+                            {agent.performanceMetrics.totalReturn.toFixed(2)}%
+                          </div>
+                          <div>
+                            <span className="font-medium">Win Rate:</span>{" "}
+                            {agent.performanceMetrics.winRate.toFixed(1)}%
+                          </div>
+                        </div>
+                        <div className="mt-auto flex justify-end">
+                          <button
+                            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-xs md:text-sm hover:bg-primary-700 transition-colors"
+                            onClick={() => console.log(agent.id)}
+                          >
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+            {/* Carousel scroll buttons for desktop */}
             <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:bg-red-500/30 transition-colors"
+              type="button"
+              className="hidden md:flex absolute top-1/2 -translate-y-1/2 left-0 z-20 bg-dark-800/80 hover:bg-dark-700/90 rounded-full p-2 shadow-lg mr-2"
+              style={{ pointerEvents: "auto" }}
+              onClick={() => {
+                const flex = document.getElementById("new-agents-carousel");
+                const container = flex?.parentElement;
+                if (container)
+                  container.scrollBy({ left: -350, behavior: "smooth" });
+              }}
             >
-              Try Again
+              <svg
+                width={20}
+                height={20}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-0 z-20 bg-dark-800/80 hover:bg-dark-700/90 rounded-full p-2 shadow-lg ml-2"
+              style={{ pointerEvents: "auto" }}
+              onClick={() => {
+                const flex = document.getElementById("new-agents-carousel");
+                const container = flex?.parentElement;
+                if (container)
+                  container.scrollBy({ left: 350, behavior: "smooth" });
+              }}
+            >
+              <svg
+                width={20}
+                height={20}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
             </button>
           </div>
-        )}
-
-        {/* Agents Grid */}
-        {!loading || firebaseAgents.length > 0 ? (
-          <>
-            {filteredAndSortedAgents.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredAndSortedAgents.map((agent: Agent) => (
-                  <AgentCard key={agent.id} agent={agent} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <div className="text-gray-400 dark:text-gray-500 mb-4">
-                  <svg
-                    className="w-16 h-16 mx-auto"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1}
-                      d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.175-5.5-2.971M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-medium text-white mb-2">
-                  No strategies found
-                </h3>
-                <p className="text-text-secondary">
-                  Try adjusting your search criteria or filters
-                </p>
-              </div>
-            )}
-
-            {/* Load More Button - Only show if there are more agents and we're not filtering */}
-            {hasMore && !searchTerm && selectedRisk === "All" && (
-              <div className="text-center mt-8">
-                <button
-                  onClick={fetchMore}
-                  disabled={loading}
-                  className="px-8 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                >
-                  {loading ? "Loading..." : "Load More Agents"}
-                </button>
-              </div>
-            )}
-          </>
-        ) : null}
+          {/* Carousel container id for scroll buttons */}
+          <style jsx>{`
+            @media (min-width: 768px) {
+              .overflow-x-auto > .flex {
+                scroll-snap-type: x mandatory;
+              }
+              .overflow-x-auto > .flex > div {
+                scroll-snap-align: start;
+              }
+            }
+            .overflow-x-auto::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
+        </div>
       </div>
     </div>
   );

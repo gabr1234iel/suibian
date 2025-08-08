@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useRouter } from "next/router";
 import { agents } from "../../data/agents";
 import { Agent } from "../../types";
-import NavBar from "../../components/NavBar";
 import Header from "@/components/Header";
 
 const AgentDetailPage: React.FC = () => {
