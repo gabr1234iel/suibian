@@ -3,7 +3,7 @@ import React, { useState } from "react";
 const reviews = [
   {
     name: "Alice",
-    avatar: "/assets/avatar1.png",
+    avatar: "https://api.dicebear.com/7.x/personas/svg?seed=Alice",
     agent: "QuantumTrader",
     review:
       "QuantumTrader helped me automate my trades and boosted my returns! The UI is clean and the strategies are transparent.",
@@ -11,7 +11,7 @@ const reviews = [
   },
   {
     name: "Bob",
-    avatar: "/assets/avatar2.png",
+    avatar: "https://api.dicebear.com/7.x/personas/svg?seed=Bob",
     agent: "SuiMomentum",
     review:
       "I love the risk controls on SuiMomentum. Subscribing was easy and the performance has been consistent.",
@@ -19,7 +19,7 @@ const reviews = [
   },
   {
     name: "Chloe",
-    avatar: "/assets/avatar3.png",
+    avatar: "https://api.dicebear.com/7.x/personas/svg?seed=Chloe",
     agent: "GreenBot",
     review:
       "GreenBot's strategy is unique and the community is super helpful. Highly recommend for new users!",
@@ -27,7 +27,7 @@ const reviews = [
   },
   {
     name: "Community Member",
-    avatar: "/assets/avatar4.png",
+    avatar: "https://api.dicebear.com/7.x/personas/svg?seed=Community",
     agent: "-",
     review:
       "The marketplace is a game-changer for DeFi automation. Excited to see more agents join!",
@@ -57,10 +57,6 @@ const ReviewsCarousel: React.FC = () => {
     return () => clearInterval(interval);
   }, [maxIndex]);
 
-  const scrollLeft = () => setScrollIndex((prev) => Math.max(0, prev - 1));
-  const scrollRight = () =>
-    setScrollIndex((prev) => Math.min(maxIndex, prev + 1));
-
   return (
     <div className="relative w-full flex flex-col items-center">
       <div className="w-full overflow-x-hidden">
@@ -87,7 +83,7 @@ const ReviewsCarousel: React.FC = () => {
                     className="w-12 h-12 rounded-full border-2 border-white/30 object-cover"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
-                        "/assets/avatar1.png";
+                        "https://api.dicebear.com/7.x/personas/svg?seed=Default";
                     }}
                   />
                   <div>

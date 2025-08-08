@@ -6,6 +6,7 @@ import { useTradingAgents } from "../hooks/useTradingAgents";
 import { TradingAgent } from "../api/marketplaceApi";
 import Header from "@/components/Header";
 import ReviewsCarousel from "@/components/ReviewsCarousel";
+import Footer from "@/components/Footer";
 
 const MarketplacePage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -25,25 +26,6 @@ const MarketplacePage: React.FC = () => {
     isActive: true,
     limitCount: 50,
   });
-
-  // Handle search form submission
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      // Use Firebase search for better results
-      searchAgents(searchTerm.trim());
-    } else {
-      clearSearch();
-    }
-  };
-
-  // Handle search term changes
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
-    if (!value.trim()) {
-      clearSearch();
-    }
-  };
 
   // Convert Firebase agents to display format and combine with mock data for demo
   const allAgents: Agent[] = React.useMemo(() => {
@@ -82,48 +64,12 @@ const MarketplacePage: React.FC = () => {
     return [...convertedFirebaseAgents, ...agents];
   }, [firebaseAgents]);
 
-  const filteredAndSortedAgents = React.useMemo(() => {
-    let filtered = allAgents.filter((agent: Agent) => {
-      const matchesSearch =
-        agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        agent.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        agent.tags.some((tag) =>
-          tag.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-
-      const matchesRisk =
-        selectedRisk === "All" || agent.riskLevel === selectedRisk;
-
-      return matchesSearch && matchesRisk;
-    });
-
-    // Sort agents
-    filtered.sort((a: Agent, b: Agent) => {
-      switch (sortBy) {
-        case "totalReturn":
-          return (
-            b.performanceMetrics.totalReturn - a.performanceMetrics.totalReturn
-          );
-        case "winRate":
-          return b.performanceMetrics.winRate - a.performanceMetrics.winRate;
-        case "subscribers":
-          return b.subscribers - a.subscribers;
-        case "fee":
-          return a.fee - b.fee;
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  }, [allAgents, searchTerm, selectedRisk, sortBy]);
-
   return (
     <div
       className="min-h-screen bg-dark-800 text-white p-8 relative overflow-hidden"
       style={{
         backgroundImage:
-          "radial-gradient(ellipse 60% 6% at 0% 8%, rgba(0,255,180,0.18) 40%, transparent 90%)",
+          "radial-gradient(ellipse 60% 15% at 0% 22%, rgba(0,255,180,0.18) 40%, transparent 90%)",
         backgroundRepeat: "no-repeat",
         backgroundAttachment: "scroll", // Changed from 'fixed' to 'scroll'
         imageRendering: "pixelated", // This will pixelate the background image
@@ -152,7 +98,30 @@ const MarketplacePage: React.FC = () => {
 
         {/* Hot Agents Section */}
         <div className="w-full mt-12 mb-10">
-          <h2 className="text-2xl font-semibold text-white mb-4">Hot Agents</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold text-white">Hot Agents</h2>
+            <a
+              href="/browse-agents"
+              className="flex items-center gap-1 px-3 py-2 text-white rounded-lg text-sm cursor-pointer hover:text-gray-200"
+              style={{ minWidth: 0 }}
+            >
+              <svg
+                className="ml-1"
+                width={20}
+                height={20}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </a>
+          </div>
           <div className="flex flex-col md:flex-row gap-6 w-full">
             {/* Left Table: 1-5 */}
             <div className="flex-1">
@@ -180,7 +149,9 @@ const MarketplacePage: React.FC = () => {
                         <tr
                           key={agent.id}
                           className="border-b border-white/10 last:border-0 cursor-pointer hover:bg-white/5 transition"
-                          onClick={() => console.log(agent.id)}
+                          onClick={() => {
+                            window.location.href = `/agents/${agent.id}`;
+                          }}
                         >
                           <td className="px-3 py-2">{idx + 1}</td>
                           <td className="px-3 py-2">{agent.name}</td>
@@ -217,7 +188,9 @@ const MarketplacePage: React.FC = () => {
                         <tr
                           key={agent.id}
                           className="border-b border-white/10 last:border-0 cursor-pointer hover:bg-white/5 transition"
-                          onClick={() => console.log(agent.id)}
+                          onClick={() => {
+                            window.location.href = `/agents/${agent.id}`;
+                          }}
                         >
                           <td className="px-3 py-2">{idx + 6}</td>
                           <td className="px-3 py-2">{agent.name}</td>
@@ -233,7 +206,30 @@ const MarketplacePage: React.FC = () => {
 
         {/* New Agents Section */}
         <div className="w-full mb-12">
-          <h2 className="text-2xl font-semibold text-white mb-4">New Agents</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold text-white">New Agents</h2>
+            <a
+              href="/browse-agents"
+              className="flex items-center gap-1 px-3 py-2 text-white rounded-lg text-sm cursor-pointer hover:text-gray-200"
+              style={{ minWidth: 0 }}
+            >
+              <svg
+                className="ml-1"
+                width={20}
+                height={20}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </a>
+          </div>{" "}
           <div className="relative min-h-[420px]">
             <div className="overflow-x-auto">
               <div className="flex gap-6" id="new-agents-carousel">
@@ -255,11 +251,7 @@ const MarketplacePage: React.FC = () => {
                         minWidth: "260px",
                       }}
                     >
-                      <div
-                        className="bg-glass-dark backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-lg h-full flex flex-col
-            md:p-6
-            "
-                      >
+                      <div className="bg-glass-dark backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-lg h-full flex flex-col md:p-6">
                         <div className="flex items-center mb-3">
                           <div className="flex-1">
                             <h3 className="text-lg md:text-xl font-bold text-white truncate">
@@ -308,7 +300,9 @@ const MarketplacePage: React.FC = () => {
                         <div className="mt-auto flex justify-end">
                           <button
                             className="px-4 py-2 bg-primary-600 text-white rounded-lg text-xs md:text-sm hover:bg-primary-700 transition-colors"
-                            onClick={() => console.log(agent.id)}
+                            onClick={() => {
+                              window.location.href = `/agents/${agent.id}`;
+                            }}
                           >
                             View Details
                           </button>

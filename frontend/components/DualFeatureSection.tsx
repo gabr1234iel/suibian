@@ -194,7 +194,7 @@ const DualFeatureSection: React.FC = () => {
 
                 {/* CTA Button */}
                 <motion.button
-                  className="w-full mt-8 py-4 bg-black text-white border-2 border-gray-500 rounded-2xl font-semibold transition-all duration-300 group hover:bg-white hover:text-black"
+                  className="w-full mt-8 py-4 bg-black text-white border border-white rounded-2xl font-semibold transition-all duration-300 group hover:bg-white hover:text-black"
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     window.location.href = "/login"; // Replace with your actual link
@@ -273,7 +273,7 @@ const DualFeatureSection: React.FC = () => {
 
                 {/* CTA Button */}
                 <motion.button
-                  className="w-full mt-8 py-4 bg-black text-white border-2 border-gray-500 rounded-2xl font-semiboldtransition-all duration-300 group hover:bg-white hover:text-black"
+                  className="w-full mt-8 py-4 bg-black text-white border border-white rounded-2xl font-semiboldtransition-all duration-300 group hover:bg-white hover:text-black"
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     window.location.href = "/login"; // Replace with your actual link

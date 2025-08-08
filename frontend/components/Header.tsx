@@ -14,7 +14,6 @@ const Header = () => {
   const { isLoggedIn, logout, userAddress, balance } = useAppContext();
   const router = useRouter();
   const [showWalletPopup, setShowWalletPopup] = useState(false);
-  const [showMarketplaceDropdown, setShowMarketplaceDropdown] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleLogout = (): void => {
@@ -75,58 +74,18 @@ const Header = () => {
           <nav className="hidden md:flex space-x-8">
             {isLoggedIn ? (
               <>
-                {/* Marketplace Dropdown */}
-                <div
-                  className="relative"
-                  onMouseEnter={() => setShowMarketplaceDropdown(true)}
-                  onMouseLeave={() => setShowMarketplaceDropdown(false)}
-                  tabIndex={0}
+                <Link
+                  href="/marketplace"
+                  className="text-white hover:text-blue-400 transition-colors font-medium"
                 >
-                  <button
-                    className="text-white/80 hover:text-white transition-colors font-medium flex items-center gap-1"
-                    type="button"
-                  >
-                    Marketplace
-                    <svg
-                      className={`w-4 h-4 transition-transform duration-200 ${
-                        showMarketplaceDropdown ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-                  {showMarketplaceDropdown && (
-                    <div
-                      className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-dark-800/90 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-10 animate-fade-in-down"
-                      onMouseEnter={() => setShowMarketplaceDropdown(true)}
-                      onMouseLeave={() => setShowMarketplaceDropdown(false)}
-                    >
-                      <div className="p-2">
-                        <Link
-                          href="/marketplace"
-                          className="block w-full text-left px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white rounded-md transition-colors"
-                        >
-                          Marketplace Home
-                        </Link>
-                        <Link
-                          href="/browse-agent"
-                          className="block w-full text-left px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white rounded-md transition-colors"
-                        >
-                          Browse Agents
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
+                  Marketplace
+                </Link>
+                <Link
+                  href="/browse-agents"
+                  className="text-white/80 hover:text-white transition-colors font-medium"
+                >
+                  Browse Agents
+                </Link>
                 <Link
                   href="/dashboard"
                   className="text-white/80 hover:text-white transition-colors font-medium"
@@ -138,12 +97,6 @@ const Header = () => {
                   className="text-white/80 hover:text-white transition-colors font-medium"
                 >
                   Create Agent
-                </Link>
-                <Link
-                  href="/settings"
-                  className="text-white/80 hover:text-white transition-colors font-medium"
-                >
-                  Settings
                 </Link>
               </>
             ) : (

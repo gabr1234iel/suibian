@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useRouter } from "next/router";
-import { agents } from "../../data/agents";
+import { agents as mockAgents } from "../../data/agents";
 import { Agent } from "../../types";
+import { useTradingAgent } from "../../hooks/useTradingAgents";
 import Header from "@/components/Header";
 
 const AgentDetailPage: React.FC = () => {
@@ -9,7 +10,52 @@ const AgentDetailPage: React.FC = () => {
   const { id } = router.query;
   const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
 
-  const agent: Agent | undefined = agents.find((a: Agent) => a.id === id);
+  // Fetch agent from Firestore
+  const { agent: firebaseAgent, loading } = useTradingAgent(
+    typeof id === "string" ? id : null
+  );
+
+  // Map TradingAgent to Agent type
+  const agent: Agent | undefined = useMemo(() => {
+    if (firebaseAgent) {
+      return {
+        id: firebaseAgent.agent_id,
+        name: firebaseAgent.name,
+        creator: firebaseAgent.creator,
+        strategy: `Agent ID: ${firebaseAgent.agent_id.slice(0, 10)}...`,
+        description: `${firebaseAgent.total_subscribers} subscribers`,
+        riskLevel: firebaseAgent.is_active
+          ? "Low"
+          : ("High" as "Low" | "Medium" | "High"),
+        fee: parseInt(firebaseAgent.subscription_fee) / 1000000000,
+        subscribers: firebaseAgent.total_subscribers,
+        tags: [
+          "Blockchain",
+          "Automated",
+          firebaseAgent.is_active ? "Active" : "Inactive",
+        ],
+        performanceMetrics: {
+          totalReturn: Math.random() * 50 + 10, // Mock for demo
+          winRate: Math.random() * 40 + 60,
+          sharpeRatio: Math.random() * 2 + 1,
+          maxDrawdown: Math.random() * 15 + 5,
+        },
+        createdAt:
+          firebaseAgent.created_at instanceof Date
+            ? firebaseAgent.created_at.toISOString()
+            : new Date().toISOString(),
+      };
+    }
+    // fallback to mock data
+    if (typeof id === "string") {
+      return mockAgents.find((a: Agent) => a.id === id);
+    }
+    return undefined;
+  }, [firebaseAgent, id]);
+
+  if (loading) {
+    return <div className="text-center py-12 text-white">Loading agent...</div>;
+  }
 
   if (!agent) {
     return (
