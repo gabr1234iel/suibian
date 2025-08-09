@@ -65,6 +65,7 @@ module suibian_marketplace::subscription_manager {
     /// Events
     public struct UserSubscribed has copy, drop {
         agent_id: sui::object::ID,
+        subscription_id: sui::object::ID,
         subscriber: address,
         subscription_fee_paid: u64,
         subscription_end: u64,
@@ -161,6 +162,7 @@ module suibian_marketplace::subscription_manager {
         // Emit subscription event
         event::emit(UserSubscribed {
             agent_id,
+            subscription_id: sui::object::id(&subscription),  // ADD THIS LINE
             subscriber,
             subscription_fee_paid: subscription_fee,
             subscription_end,
