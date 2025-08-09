@@ -75,19 +75,27 @@ class DEXTester {
                 id: this.poolId,
                 options: { showContent: true }
             });
-
+    
             if (poolObject.data?.content && 'fields' in poolObject.data.content) {
                 const fields = poolObject.data.content.fields;
-                const suiReserve = Number(fields.sui_reserve);
-                const usdcReserve = Number(fields.usdc_reserve);
+                const suiReserve = Number(fields.sui_reserve); // In MIST (9 decimals)
+                const usdcReserve = Number(fields.usdc_reserve); // In micro-USDC (6 decimals)
                 const totalLpSupply = Number(fields.total_lp_supply);
-                const price = suiReserve > 0 ? usdcReserve / suiReserve : 0;
+                
+                // Calculate the REAL price
+                let price = 0;
+                if (suiReserve > 0) {
+                    // Convert to actual units: USDC per SUI
+                    const suiInUnits = suiReserve / 1e9;  // MIST to SUI
+                    const usdcInUnits = usdcReserve / 1e6; // micro-USDC to USDC
+                    price = usdcInUnits / suiInUnits;     // USDC per SUI
+                }
                 
                 console.log('\n📊 Pool Info:');
                 console.log(`SUI Reserve: ${this.formatSUI(suiReserve)} SUI`);
                 console.log(`USDC Reserve: ${this.formatUSDC(usdcReserve)} USDC`);
                 console.log(`Total LP Supply: ${totalLpSupply}`);
-                console.log(`Price: $${(price / 1e3).toFixed(4)} USDC per SUI`); // Adjust for decimal difference
+                console.log(`Price: $${price.toFixed(4)} USDC per SUI`); // ← Fixed price display
                 
                 return { suiReserve, usdcReserve, totalLpSupply, price };
             }
@@ -334,7 +342,7 @@ class DEXTester {
 async function main() {
     console.log('🌊 DEX Testing Demo Starting...\n');
     
-    // Create DEX tester instance
+    // Create DEX tester instance  
     const dex = new DEXTester(
         client,
         userKeypair,
@@ -348,20 +356,15 @@ async function main() {
         // 1. Check initial state
         console.log('📊 Initial State:');
         await dex.getWalletBalance();
-        const poolInfo = await dex.getPoolInfo();
+        await dex.getPoolInfo();
         
-        // 2. Mint MOCK_USDC for testing
-        console.log('\n=== MINTING USDC ===');
-        await dex.mintUSDC(1000); // Mint 1000 USDC
-        await dex.getWalletBalance();
-
-        // 3. Add liquidity to the pool
+        // 2. Add liquidity with reasonable amounts
         console.log('\n=== ADDING LIQUIDITY ===');
-        await dex.addLiquidity(10, 18000); // Add 10 SUI + 18000 USDC (assuming 1 SUI = ~1800 USDC)
+        await dex.addLiquidity(10, 30); // 10 SUI + 30 USDC (you have 1000 USDC, so this is fine)
         await dex.getPoolInfo();
         await dex.getWalletBalance();
 
-        // 4. Test swaps
+        // 3. Test swaps
         console.log('\n=== TESTING SWAPS ===');
         
         // Get swap preview
@@ -372,16 +375,11 @@ async function main() {
         await dex.getPoolInfo();
         await dex.getWalletBalance();
 
-        // Get swap preview
-        await dex.getSwapPreview(500, false); // Preview: 500 USDC → SUI
+        // Get swap preview for reverse
+        await dex.getSwapPreview(10, false); // Preview: 10 USDC → SUI
         
         // Swap USDC to SUI
-        await dex.swapUSDCToSui(500); // Swap 500 USDC
-        await dex.getPoolInfo();
-        await dex.getWalletBalance();
-
-        // Another swap to see price impact
-        await dex.swapSuiToUSDC(2); // Swap 2 more SUI
+        await dex.swapUSDCToSui(10); // Swap 10 USDC
         await dex.getPoolInfo();
         await dex.getWalletBalance();
 
