@@ -5,10 +5,10 @@ import { ZkLoginTransactionManager } from '../utils/zkLoginTransaction';
 import { Transaction } from '@mysten/sui/transactions';
 
 // Contract constants
-const PACKAGE_ID = "0x705da1cf5e87858f32787d79745381f2f523c8006794ef209169c7472afb09fa";
+const PACKAGE_ID = "0xfd6a00339d853aae2473bab92a11d2db322604e33339bad08e8e52f97470fa9d";
+const SUBSCRIPTION_MANAGER_ID = "0x83e0dd1f1df2c174f353a3b0cd0fc03141690f3f2ebd7bfbbea409f8db409454";
 const AGENT_REGISTRY_MODULE = "agent_registry";
 const SUBSCRIPTION_MANAGER_MODULE = "subscription_manager";
-const SUBSCRIPTION_MANAGER_ID = "0xc212a5ecf3febcc7e534e2f4cbcb722388bd7dd5974c78c12142612b63cae12a";
 
 // Mock TEE data (replace with actual TEE public key and wallet in production)
 const MOCK_TEE_PUBLIC_KEY = new Array(32).fill(1); // 32-byte mock public key
@@ -118,6 +118,12 @@ export const useSuiTransactions = () => {
       // Refresh balance to reflect gas fees paid for the transaction
       console.log('🔄 Refreshing balance after transaction...');
       await refreshBalance();
+      
+      // Store agent in localStorage for immediate display
+      if (agentId) {
+        console.log('💾 Storing agent in localStorage...');
+        await storeAgentInLocalStorage(agentId, params);
+      }
       
       return {
         success: true,
@@ -339,6 +345,56 @@ export const useSuiTransactions = () => {
     } catch (error) {
       console.error('❌ Failed to get agent info:', error);
       throw error;
+    }
+  }, [initializeTransactionManager]);
+
+  // Store agent in localStorage for immediate display
+  const storeAgentInLocalStorage = useCallback(async (agentId: string, params: CreateAgentParams) => {
+    try {
+      const manager = await initializeTransactionManager();
+      const userAddress = manager.getUserAddress();
+      
+      // Create agent object with current data
+      const newAgent = {
+        id: agentId,
+        agent_id: agentId,
+        name: params.name,
+        description: params.description,
+        creator: userAddress,
+        subscription_fee: Math.floor(params.fee * 10_000_000).toString(), // Convert to MIST
+        is_active: true,
+        total_subscribers: 0,
+        created_at: new Date().toISOString(),
+        // Add additional fields for compatibility
+        wallet_address: MOCK_TEE_WALLET_ADDRESS,
+        tee_wallet_address: MOCK_TEE_WALLET_ADDRESS,
+        min_deposit: "50000000", // 0.05 SUI
+        max_deposit: "100000000000", // 100 SUI
+        // Local storage specific fields
+        _isLocalAgent: true, // Flag to identify locally stored agents
+        _createdAt: Date.now(),
+      };
+
+      // Get existing agents from localStorage
+      const existingAgents = JSON.parse(localStorage.getItem('localAgents') || '[]');
+      
+      // Add new agent to the beginning of the array
+      existingAgents.unshift(newAgent);
+      
+      // Keep only the last 10 locally created agents to prevent storage bloat
+      const trimmedAgents = existingAgents.slice(0, 10);
+      
+      // Store back to localStorage
+      localStorage.setItem('localAgents', JSON.stringify(trimmedAgents));
+      
+      console.log('✅ Agent stored in localStorage:', {
+        agentId,
+        name: params.name,
+        totalLocalAgents: trimmedAgents.length
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to store agent in localStorage:', error);
     }
   }, [initializeTransactionManager]);
 

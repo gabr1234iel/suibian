@@ -24,18 +24,20 @@ const DashboardPage: React.FC = () => {
   const { isLoggedIn, userAddress } = useAppContext();
   const router = useRouter();
 
-  // Get user's CREATED trading agents from Firebase
+  // Get user's CREATED trading agents from both localStorage and Firebase
   const {
     agents: userTradingAgents,
     loading: agentsLoading,
     error: agentsError,
+    refetch: refetchUserAgents,
   } = useUserTradingAgents(userAddress || null);
 
-  // Get user's SUBSCRIBED trading agents from Firebase
+  // Get user's SUBSCRIBED trading agents from both localStorage and Firebase
   const {
     agents: subscribedAgents,
     loading: subscribedAgentsLoading,
     error: subscribedAgentsError,
+    refetch: refetchSubscribedAgents,
   } = useUserSubscribedAgents(userAddress || null);
 
   // Redirect if not logged in
@@ -44,6 +46,23 @@ const DashboardPage: React.FC = () => {
       router.push("/");
     }
   }, [isLoggedIn, router]);
+
+  // Refresh both created and subscribed agents when page becomes visible (e.g., returning from creation/subscription)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isLoggedIn && userAddress) {
+        console.log('📱 Dashboard visible - refreshing agents...');
+        refetchUserAgents();
+        refetchSubscribedAgents();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isLoggedIn, userAddress, refetchUserAgents, refetchSubscribedAgents]);
 
   if (!isLoggedIn) {
     return null; // Will redirect in useEffect

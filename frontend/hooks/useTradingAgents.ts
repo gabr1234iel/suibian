@@ -179,15 +179,63 @@ export const useUserTradingAgents = (creatorAddress: string | null) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchUserAgents = useCallback(async () => {
-    if (!creatorAddress) return;
+    if (!creatorAddress) {
+      setAgents([]);
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const result = await getTradingAgentsByCreator(creatorAddress);
-      setAgents(result);
+      // 1. Get localStorage agents created by the user
+      const localAgents: TradingAgent[] = [];
+      const storedAgents = JSON.parse(localStorage.getItem('localAgents') || '[]');
+      
+      storedAgents.forEach((agent: any) => {
+        if (agent.creator === creatorAddress) {
+          // Convert localStorage agent to TradingAgent format
+          localAgents.push({
+            agent_id: agent.agent_id,
+            name: agent.name,
+            creator: agent.creator,
+            subscription_fee: agent.subscription_fee,
+            is_active: agent.is_active,
+            total_subscribers: agent.total_subscribers,
+            created_at: agent.created_at,
+            tee_wallet_address: agent.tee_wallet_address,
+            event_seq: "", // Required by interface
+            tx_digest: "", // Required by interface
+          });
+        }
+      });
+
+      console.log(`📱 Found ${localAgents.length} localStorage agents created by user`);
+
+      // 2. Get Firebase agents created by the user
+      let firebaseAgents: TradingAgent[] = [];
+      try {
+        firebaseAgents = await getTradingAgentsByCreator(creatorAddress);
+        console.log(`🔥 Found ${firebaseAgents.length} Firebase agents created by user`);
+      } catch (firebaseError) {
+        console.error("Firebase agents fetch failed:", firebaseError);
+        // Continue with localStorage-only data
+      }
+
+      // 3. Combine localStorage and Firebase agents, prioritizing localStorage and avoiding duplicates
+      const allAgents = [...localAgents];
+      firebaseAgents.forEach(fbAgent => {
+        // Only add if not already in localStorage agents
+        if (!allAgents.some(localAgent => localAgent.agent_id === fbAgent.agent_id)) {
+          allAgents.push(fbAgent);
+        }
+      });
+
+      console.log(`✅ Total created agents: ${allAgents.length} (${localAgents.length} local + ${firebaseAgents.length - localAgents.length} Firebase)`);
+      setAgents(allAgents);
+
     } catch (err) {
+      console.error("Error fetching user agents:", err);
       setError(
         err instanceof Error ? err.message : "Failed to fetch user agents"
       );
@@ -282,7 +330,7 @@ export const useUserSubscribedAgents = (userAddress: string | null) => {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Fetches the user's subscriptions and then resolves the agent details for each.
+   * Fetches the user's subscriptions from both localStorage and Firebase, then resolves the agent details for each.
    */
   const fetchSubscribedAgents = useCallback(async () => {
     // Exit if no user address is provided, and clear previous results
@@ -295,31 +343,89 @@ export const useUserSubscribedAgents = (userAddress: string | null) => {
     setError(null);
 
     try {
-      // 1. Fetch all subscription documents for the given user address
-      const subscriptions: UserSubscription[] =
-        await getUserSubscriptions(userAddress);
-
-      if (subscriptions.length > 0) {
-        // 2. Extract the agent_id from each subscription
-        const agentIds = subscriptions.map((sub) => sub.agent_id);
-
-        // 3. Fetch the full TradingAgent object for each agent_id concurrently
-        const agentPromises = agentIds.map((id) =>
-          getTradingAgentByAgentId(id)
-        );
-        const resolvedAgents = await Promise.all(agentPromises);
-
-        // 4. Filter out any null results (in case an agent was deleted) and update state
-        setAgents(
-          resolvedAgents.filter(
-            (agent): agent is TradingAgent => agent !== null
-          )
-        );
-      } else {
-        // If the user has no subscriptions, set agents to an empty array
-        setAgents([]);
+      // 1. Get subscription data from localStorage
+      const localSubscriptions = localStorage.getItem("userSubscriptions");
+      const localAgentIds = new Set<string>();
+      
+      if (localSubscriptions) {
+        try {
+          const subscriptions = JSON.parse(localSubscriptions);
+          // Extract agent IDs from localStorage subscription keys (format: "userAddress_agentId")
+          Object.keys(subscriptions).forEach(key => {
+            if (subscriptions[key] && key.startsWith(`${userAddress}_`)) {
+              const agentId = key.replace(`${userAddress}_`, '');
+              localAgentIds.add(agentId);
+            }
+          });
+          console.log(`📱 Found ${localAgentIds.size} localStorage subscriptions for user`);
+        } catch (error) {
+          console.error("Error parsing localStorage subscriptions:", error);
+        }
       }
+
+      // 2. Get localStorage agents that match subscription IDs
+      const localAgents: TradingAgent[] = [];
+      if (localAgentIds.size > 0) {
+        const storedAgents = JSON.parse(localStorage.getItem('localAgents') || '[]');
+        storedAgents.forEach((agent: any) => {
+          if (localAgentIds.has(agent.agent_id)) {
+            // Convert localStorage agent to TradingAgent format
+            localAgents.push({
+              agent_id: agent.agent_id,
+              name: agent.name,
+              creator: agent.creator,
+              subscription_fee: agent.subscription_fee,
+              is_active: agent.is_active,
+              total_subscribers: agent.total_subscribers,
+              created_at: agent.created_at,
+              tee_wallet_address: agent.tee_wallet_address,
+              event_seq: "", // Required by interface
+              tx_digest: "", // Required by interface
+            });
+          }
+        });
+        console.log(`📱 Found ${localAgents.length} matching localStorage agents`);
+      }
+
+      // 3. Fetch Firebase subscriptions
+      let firebaseAgents: TradingAgent[] = [];
+      try {
+        const firebaseSubscriptions: UserSubscription[] = await getUserSubscriptions(userAddress);
+        
+        if (firebaseSubscriptions.length > 0) {
+          const firebaseAgentIds = firebaseSubscriptions.map((sub) => sub.agent_id);
+          console.log(`🔥 Found ${firebaseAgentIds.length} Firebase subscriptions`);
+
+          // Fetch the full TradingAgent object for each agent_id concurrently
+          const agentPromises = firebaseAgentIds.map((id) =>
+            getTradingAgentByAgentId(id)
+          );
+          const resolvedAgents = await Promise.all(agentPromises);
+
+          // Filter out any null results
+          firebaseAgents = resolvedAgents.filter(
+            (agent): agent is TradingAgent => agent !== null
+          );
+        }
+      } catch (firebaseError) {
+        console.error("Firebase subscription fetch failed:", firebaseError);
+        // Continue with localStorage-only data
+      }
+
+      // 4. Combine localStorage and Firebase agents, prioritizing localStorage and avoiding duplicates
+      const allAgents = [...localAgents];
+      firebaseAgents.forEach(fbAgent => {
+        // Only add if not already in localStorage agents
+        if (!allAgents.some(localAgent => localAgent.agent_id === fbAgent.agent_id)) {
+          allAgents.push(fbAgent);
+        }
+      });
+
+      console.log(`✅ Total subscribed agents: ${allAgents.length} (${localAgents.length} local + ${firebaseAgents.length - localAgents.length} Firebase)`);
+      setAgents(allAgents);
+
     } catch (err) {
+      console.error("Error fetching subscribed agents:", err);
       setError(
         err instanceof Error ? err.message : "Failed to fetch subscribed agents"
       );
