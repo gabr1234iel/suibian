@@ -47,7 +47,7 @@ const AgentCard: React.FC<{ agent: Agent }> = ({ agent }) => {
     // Wrap the entire card in a Link component
     <Link
       href={`/agents/${agent.id}`}
-      className={`bg-dark-800 rounded-lg border border-gray-800 border-t-4 p-4 flex flex-col h-full transition-all duration-200 hover:border-gray-700 hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer`}
+      className={`bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-lg flex flex-col h-full transition-all duration-200 hover:border-white/20 hover:bg-white/10 hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer`}
     >
       {/* Header: Name and Risk Level */}
       <div className="flex items-start justify-between mb-2">

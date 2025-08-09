@@ -1,11 +1,9 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Wallet,
   Shield,
   Zap,
   Users,
-  ArrowRight,
   CheckCircle,
   Sparkles,
   User,
@@ -15,8 +13,10 @@ import {
   UploadCloud,
   Code,
   DollarSign,
-  BarChart,
 } from "lucide-react";
+import landing1 from "../assets/landing-1.png";
+import landing2 from "../assets/landing-2.png";
+import landing3 from "../assets/landing-3.png";
 
 const EaseOfUseSection: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -105,7 +105,7 @@ const EaseOfUseSection: React.FC = () => {
       description:
         "Use your existing Google account - no new passwords or accounts needed.",
       icon: <Globe className="w-6 h-6" />,
-      image: "/images/google-signin.png", // You'll need to add these images
+      image: landing1.src, // You'll need to add these images
       imageAlt: "Google Sign-in Interface",
     },
     {
@@ -114,7 +114,7 @@ const EaseOfUseSection: React.FC = () => {
       description:
         "Add funds to your automatically generated SUI address with any payment method.",
       icon: <CreditCard className="w-6 h-6" />,
-      image: "/images/topup-sui.png",
+      image: landing2.src,
       imageAlt: "SUI Top-up Interface",
     },
     {
@@ -123,7 +123,7 @@ const EaseOfUseSection: React.FC = () => {
       description:
         "Browse, create, or deploy trading agents instantly - no crypto knowledge required.",
       icon: <Sparkles className="w-6 h-6" />,
-      image: "/images/trading-dashboard.png",
+      image: landing3.src,
       imageAlt: "Trading Dashboard Interface",
     },
   ];
@@ -373,30 +373,21 @@ const EaseOfUseSection: React.FC = () => {
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
             >
-              {/* Placeholder for actual images */}
+              {/* Animated image transition */}
               <motion.div
                 key={activeStep}
-                className="absolute inset-0 flex items-center justify-center"
+                className="absolute inset-0"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.4 }}
               >
-                {/* Image Placeholder - Replace with actual images */}
-                <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-green-500/20 flex flex-col items-center justify-center text-center p-8">
-                  <div className="text-6xl mb-4">{steps[activeStep].icon}</div>
-                  <h4 className="text-2xl font-bold text-white mb-2">
-                    {steps[activeStep].title}
-                  </h4>
-                  <p className="text-gray-400">{steps[activeStep].imageAlt}</p>
-                </div>
-
-                {/* Uncomment when you have actual images */}
-                {/* <img 
-                  src={steps[activeStep].image} 
+                {/* Image fills the container */}
+                <img
+                  src={steps[activeStep].image}
                   alt={steps[activeStep].imageAlt}
                   className="w-full h-full object-cover"
-                /> */}
+                />
               </motion.div>
             </motion.div>
 

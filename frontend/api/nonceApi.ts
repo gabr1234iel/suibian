@@ -142,19 +142,6 @@ async function initializeClients() {
       suiClient,
       network: "testnet",
     });
-
-    // Set package ID from environment variable or leave null
-    packageId =
-      process.env.SEAL_PACKAGE_ID ||
-      "0x1ebf90154ed053abc7cd9f8418e7a896ff9aa888581ca7755a12eb29bde59f52";
-
-    if (packageId) {
-      console.log(`✅ Seal package ID configured: ${packageId}`);
-    } else {
-      console.log(
-        "⚠️  Seal package ID not configured - Seal operations will be disabled"
-      );
-    }
   }
 }
 

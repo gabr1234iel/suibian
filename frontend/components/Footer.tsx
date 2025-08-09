@@ -27,9 +27,7 @@ const Footer: React.FC = () => {
       { name: "Create Agent", href: "create" },
       { name: "Dashboard", href: "dashboard" },
     ],
-    developers: [
-      { name: "Documentation", href: "docs" },
-    ],
+    developers: [{ name: "Documentation", href: "docs" }],
     community: [
       { name: "Discord", href: "#discord" },
       { name: "Twitter", href: "#twitter" },
@@ -114,40 +112,6 @@ const Footer: React.FC = () => {
       </div>
 
       <div className="relative z-10 px-6">
-        {/* Stats Section */}
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16 pb-16 border-b border-white/10"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            {stats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                className="text-center group"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-              >
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <div className="text-white">{stat.icon}</div>
-                  <motion.div
-                    className="text-2xl md:text-3xl font-bold text-white"
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {stat.value}
-                  </motion.div>
-                </div>
-                <div className="text-sm text-gray-500">{stat.label}</div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-
         {/* Main Footer Content */}
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-12 mb-16">

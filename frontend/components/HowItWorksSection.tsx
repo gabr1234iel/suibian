@@ -18,7 +18,7 @@ const HowItWorksSection: React.FC = () => {
       id: 1,
       title: "Browse & Discover",
       description:
-        "Explore our marketplace of AI-powered trading agents. Filter by performance, strategy type, and risk level.",
+        "Explore our marketplace of AI-powered trading agents. Filter by risk level.",
       icon: <Search className="w-8 h-8" />,
       gradient: "from-white/5 to-gray-500/5",
       borderColor: "border-white/20",
@@ -26,9 +26,9 @@ const HowItWorksSection: React.FC = () => {
     },
     {
       id: 2,
-      title: "Subscribe & Deploy",
+      title: "Subscribe",
       description:
-        "Choose your preferred agent and subscribe with just a few clicks. Your agent starts trading immediately.",
+        "Choose your preferred agent and subscribe with just a few clicks. Your agent starts trading immediately after you deposit.",
       icon: <CreditCard className="w-8 h-8" />,
       gradient: "from-white/5 to-gray-500/5",
       borderColor: "border-white/20",
@@ -38,7 +38,7 @@ const HowItWorksSection: React.FC = () => {
       id: 3,
       title: "AI Takes Control",
       description:
-        "Our sophisticated algorithms analyze markets 24/7 and execute trades based on proven strategies.",
+        "Your creator has designed a unique AI trading strategy. They analyze markets 24/7 and execute trades based on proven strategies.",
       icon: <Bot className="w-8 h-8" />,
       gradient: "from-white/5 to-gray-500/5",
       borderColor: "border-white/20",

@@ -2,8 +2,8 @@ import Header from "@/components/Header";
 import HeroSection from "@/components/Hero";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import EaseOfUseSection from "@/components/EaseOfUseSection";
-import MarketplacePreviewSection from "@/components/MarketplacePreviewSection";
-import DualFeatureSection from "@/components/DualFeatureSection";
+import MarketplacePreviewSection from "@/components/DualFeatureSection";
+import DualFeatureSection from "@/components/MarketplacePreviewSection";
 import Footer from "@/components/Footer";
 
 export default function LandingPage() {
@@ -17,12 +17,12 @@ export default function LandingPage() {
       <section id="why-us">
         <EaseOfUseSection />
       </section>
-      <section id="marketplace">
-        <MarketplacePreviewSection />
-      </section>
       <section id="for-everyone">
         <DualFeatureSection />
       </section>
+      {/* <section id="for-everyone">
+        <MarkerplacePreviewSection />
+      </section> */}
       <Footer />
     </main>
   );

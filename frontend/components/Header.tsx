@@ -12,7 +12,6 @@ const SuiBianLogo = () => (
 
 const Header = () => {
   const { logout, isLoggedIn, userAddress, balance, mounted } = useAppContext();
-  // const isLoggedIn = true;
   const router = useRouter();
   const [showWalletPopup, setShowWalletPopup] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -62,7 +61,6 @@ const Header = () => {
   const navLinks = [
     { name: "How It Works", id: "how-it-works" },
     { name: "Why Us", id: "why-us" },
-    { name: "Marketplace", id: "marketplace" },
     { name: "For Everyone", id: "for-everyone" },
   ];
 
@@ -108,7 +106,8 @@ const Header = () => {
                 <Link
                   href="/browse-agents"
                   className={`transition-colors font-medium ${
-                    router.pathname === "/browse-agents" || router.pathname.startsWith("/agents")
+                    router.pathname === "/browse-agents" ||
+                    router.pathname.startsWith("/agents")
                       ? "text-white"
                       : "text-white/80 hover:text-white"
                   }`}

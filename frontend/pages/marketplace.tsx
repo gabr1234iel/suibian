@@ -196,7 +196,7 @@ const MarketplacePage: React.FC = () => {
                           key={agent.id}
                           className="border-b border-white/10 last:border-0 cursor-pointer hover:bg-white/5 transition"
                           onClick={() => {
-                            window.location.href = `/agents/${agent.id}`;
+                            router.push(`/agents/${agent.id}`);
                           }}
                         >
                           <td className="px-3 py-2">{idx + 1}</td>
