@@ -1,9 +1,18 @@
 import { WalrusClient, WalrusFile } from "@mysten/walrus";
-import { SealClient, getAllowlistedKeyServers } from "@mysten/seal";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
-import { Transaction } from "@mysten/sui/transactions";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { fromHex, toHex } from "@mysten/sui/utils";
+import {
+  collection,
+  doc,
+  getDocs,
+  getFirestore,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { db } from "@/utils/firebaseConfig";
 
 // Configuration
 const SUI_RPC_URL = getFullnodeUrl("testnet");
@@ -14,7 +23,6 @@ const HARDCODED_POLICY_ID =
 
 // Production configuration
 const STORAGE_EPOCHS = 5; // How long to store data in Walrus (in epochs)
-const SEAL_THRESHOLD = 2; // Threshold for Seal encryption
 
 // Package ID for Seal operations - this should be your actual deployed package
 // For now, we'll use a placeholder that won't cause Seal operations to fail immediately
@@ -23,12 +31,7 @@ let packageId: string | null =
 
 // Initialize clients
 let walrusClient: WalrusClient | null = null;
-let sealClient: SealClient | null = null;
 let suiClient: SuiClient | null = null;
-
-// In-memory blob ID mapping for development/testing
-// In production, you'd use a proper database
-const blobIdMapping = new Map<string, string>();
 
 // Your wallet address with WAL tokens
 const WALLET_ADDRESS =
@@ -87,6 +90,46 @@ function getFundedKeypair(): Ed25519Keypair {
 }
 
 /**
+ * Get the Firestore document ID from the 'blobIdMapping' collection where 'storageId' matches the parameter.
+ * @param storageId - The storage ID to search for.
+ * @returns The Firestore document ID if found, otherwise null.
+ */
+export async function getBlobIdByStorageId(
+  storageId: string
+): Promise<string | null> {
+  const db = getFirestore();
+  const docSnap = await getDocs(
+    query(collection(db, "blobIdMapping"), where("__name__", "==", storageId))
+  );
+
+  if (docSnap.empty) {
+    return null;
+  }
+
+  // Get the first matching document and return its blobId field
+  const docData = docSnap.docs[0].data();
+  return docData && docData.blobId ? docData.blobId : null;
+}
+
+export async function storeBlobIdMapping(
+  storageId: string,
+  blobId: string
+): Promise<void> {
+  // Use storageId as the document ID
+  const docRef = doc(db, "blobIdMapping", storageId);
+
+  // Set or update the document with storageId as the document ID
+  await updateDoc(docRef, { blobId }).catch(async (error) => {
+    // If the document does not exist, create it
+    if (error.code === "not-found") {
+      await setDoc(docRef, { storageId, blobId });
+    } else {
+      throw error;
+    }
+  });
+}
+
+/**
  * Initialize the Walrus and Seal clients
  */
 async function initializeClients() {
@@ -112,24 +155,6 @@ async function initializeClients() {
         "⚠️  Seal package ID not configured - Seal operations will be disabled"
       );
     }
-  }
-
-  if (!sealClient && packageId) {
-    try {
-      sealClient = new SealClient({
-        suiClient,
-        serverConfigs: getAllowlistedKeyServers("testnet").map((id) => ({
-          objectId: id,
-          weight: 1,
-        })),
-        verifyKeyServers: false,
-      });
-      console.log("✅ Seal client initialized");
-    } catch (error) {
-      console.log("⚠️  Failed to initialize Seal client:", error);
-    }
-  } else if (!packageId) {
-    console.log("⚠️  Seal client not initialized - no package ID configured");
   }
 }
 
@@ -191,86 +216,11 @@ function retrieveFromMemory(key: string): string | null {
 }
 
 /**
- * Production function: Encrypt data using Seal
- */
-async function encryptWithSeal(
-  data: string,
-  policyId: string,
-  packageIdParam?: string
-): Promise<Uint8Array> {
-  const usePackageId = packageIdParam || packageId;
-
-  if (!sealClient || !usePackageId) {
-    throw new Error("Seal client not initialized or package ID not provided");
-  }
-
-  try {
-    // Use Web Crypto API instead of Node.js crypto
-    const nonce = globalThis.crypto.getRandomValues(new Uint8Array(5));
-    const policyObjectBytes = fromHex(policyId);
-
-    // Combine arrays without spreading for better compatibility
-    const combinedBytes = new Uint8Array(
-      policyObjectBytes.length + nonce.length
-    );
-    combinedBytes.set(policyObjectBytes, 0);
-    combinedBytes.set(nonce, policyObjectBytes.length);
-    const id = toHex(combinedBytes);
-
-    const { encryptedObject } = await sealClient.encrypt({
-      threshold: SEAL_THRESHOLD,
-      packageId: usePackageId,
-      id,
-      data: new TextEncoder().encode(data),
-    });
-
-    console.log(`Data encrypted with Seal using policy ID: ${policyId}`);
-    return encryptedObject;
-  } catch (error) {
-    console.error("Seal encryption error:", error);
-    throw new Error(
-      `Failed to encrypt data with Seal: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`
-    );
-  }
-}
-
-/**
- * Production function: Decrypt data using Seal
- */
-async function decryptWithSeal(
-  encryptedData: Uint8Array,
-  sessionKey: any
-): Promise<string> {
-  if (!sealClient) {
-    throw new Error("Seal client not initialized");
-  }
-
-  try {
-    const decrypted = await sealClient.decrypt({
-      data: encryptedData,
-      sessionKey,
-      txBytes: new Uint8Array(), // This may need to be populated based on your Seal setup
-    });
-
-    console.log("Data decrypted with Seal successfully");
-    return new TextDecoder().decode(decrypted);
-  } catch (error) {
-    console.error("Seal decryption error:", error);
-    throw new Error(
-      `Failed to decrypt data with Seal: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`
-    );
-  }
-}
-
-/**
- * Production function: Store encrypted data in Walrus
+ * Production function: Store data in Walrus as a direct blob (not a Quilt)
+ * This ensures we store simple JSON data that can be easily retrieved
  */
 async function storeInWalrus(
-  encryptedData: Uint8Array,
+  data: any, // Accept the actual data object
   identifier: string,
   signer: Ed25519Keypair
 ): Promise<string> {
@@ -279,43 +229,31 @@ async function storeInWalrus(
   }
 
   try {
-    // Create a WalrusFile from the encrypted data
-    const file = WalrusFile.from({
-      contents: encryptedData,
-      identifier,
-    });
+    // Convert data to JSON string, then to UTF-8 bytes
+    const jsonString = JSON.stringify(data);
+    const encodedData = new TextEncoder().encode(jsonString);
 
     console.log(
-      `Storing encrypted data in Walrus for identifier: ${identifier}`
+      `Storing data in Walrus as direct blob for identifier: ${identifier}`
     );
-
-    // // Write the file to Walrus
-    // const results = await walrusClient.writeFiles({
-    //   files: [file],
-    //   epochs: STORAGE_EPOCHS,
-    //   deletable: true, // Allow deletion if needed
-    //   signer,
-    // });
+    console.log(`JSON string: ${jsonString}`);
+    console.log(`Encoded data length: ${encodedData.length} bytes`);
 
     // Use YOUR funded wallet for payment instead of user's ephemeral key
     const paymentSigner = getFundedKeypair();
     console.log(`💰 Using funded wallet for payment: ${WALLET_ADDRESS}`);
 
-    // Write the file to Walrus using YOUR funded wallet
-    const results = await walrusClient.writeFiles({
-      files: [file],
+    // Store as a direct blob (not a file/quilt) for simpler retrieval
+    const result = await walrusClient.writeBlob({
+      blob: encodedData,
       epochs: STORAGE_EPOCHS,
       deletable: true,
       signer: paymentSigner, // ← Your funded wallet pays WAL tokens
     });
 
-    if (results.length === 0) {
-      throw new Error("No results returned from Walrus storage");
-    }
-
-    const result = results[0];
-    console.log(`Data stored in Walrus with blob ID: ${result.blobId}`);
-
+    console.log(
+      `Data stored in Walrus as direct blob with ID: ${result.blobId}`
+    );
     return result.blobId;
   } catch (error) {
     console.error("Walrus storage error:", error);
@@ -328,9 +266,10 @@ async function storeInWalrus(
 }
 
 /**
- * Production function: Retrieve encrypted data from Walrus
+ * Production function: Retrieve data from Walrus and parse as JSON
+ * Handles both direct blobs and Quilts properly
  */
-async function retrieveFromWalrus(blobId: string): Promise<Uint8Array | null> {
+async function retrieveFromWalrus(blobId: string): Promise<any | null> {
   if (!walrusClient) {
     throw new Error("Walrus client not initialized");
   }
@@ -338,19 +277,111 @@ async function retrieveFromWalrus(blobId: string): Promise<Uint8Array | null> {
   try {
     console.log(`Retrieving data from Walrus with blob ID: ${blobId}`);
 
-    // Get the file from Walrus
-    const [file] = await walrusClient.getFiles({ ids: [blobId] });
+    // First, try to get it as a WalrusBlob to check if it's a Quilt
+    try {
+      const blob = await walrusClient.getBlob({ blobId });
+      console.log("Successfully retrieved blob, checking if it's a Quilt...");
 
-    if (!file) {
-      console.log(`No file found for blob ID: ${blobId}`);
-      return null;
+      // If it's a Quilt, get the files inside it
+      const files = await blob.files();
+      console.log(`Found ${files.length} files in the blob/quilt`);
+
+      if (files.length > 0) {
+        // Try to find our JSON data in the quilt files
+        for (const file of files) {
+          try {
+            const identifier = await file.getIdentifier();
+            const tags = await file.getTags();
+            console.log(`File identifier: ${identifier}, tags:`, tags);
+
+            // Try to parse each file as JSON
+            const jsonData = await file.json();
+            console.log(`✅ Successfully parsed JSON data from quilt file`);
+            return jsonData;
+          } catch (fileError) {
+            // Try next file or fallback methods
+            console.log("Failed to parse file as JSON, trying next...");
+          }
+        }
+
+        // If no file worked as JSON, try text parsing on first file
+        const firstFile = files[0];
+        try {
+          const textData = await firstFile.text();
+          console.log(
+            `Retrieved text data from first file, length: ${textData.length}`
+          );
+          if (
+            textData.trim().startsWith("{") ||
+            textData.trim().startsWith("[")
+          ) {
+            const parsedData = JSON.parse(textData);
+            console.log(`✅ Successfully parsed JSON from text data`);
+            return parsedData;
+          }
+        } catch (textError) {
+          console.warn("Failed to parse first file as text/JSON");
+        }
+      }
+    } catch (blobError) {
+      console.log("Failed to get as blob, trying as direct file...");
     }
 
-    // Get the raw bytes
-    const bytes = await file.bytes();
-    console.log(`Retrieved ${bytes.length} bytes from Walrus`);
+    // Fallback: Try the original method (direct file access)
+    try {
+      const [file] = await walrusClient.getFiles({ ids: [blobId] });
 
-    return bytes;
+      if (!file) {
+        console.log(`No file found for blob ID: ${blobId}`);
+        return null;
+      }
+
+      // Try direct JSON parsing
+      try {
+        const jsonData = await file.json();
+        console.log(
+          `✅ Successfully parsed JSON data using direct file access`
+        );
+        return jsonData;
+      } catch (jsonError) {
+        // Try text then JSON
+        const textData = await file.text();
+        if (
+          textData.trim().startsWith("{") ||
+          textData.trim().startsWith("[")
+        ) {
+          const parsedData = JSON.parse(textData);
+          console.log(`✅ Successfully parsed JSON from direct text data`);
+          return parsedData;
+        }
+      }
+    } catch (directError) {
+      console.log("Direct file access also failed");
+    }
+
+    // Last resort: Use readBlob API for raw data
+    try {
+      console.log("Trying raw blob read as last resort...");
+      const rawBlob = await walrusClient.readBlob({ blobId });
+      console.log(`Retrieved raw blob: ${rawBlob.length} bytes`);
+      console.log("First 20 bytes:", Array.from(rawBlob.slice(0, 20)));
+
+      // Try to decode as UTF-8 and parse as JSON
+      const textData = new TextDecoder().decode(rawBlob);
+      if (textData.trim().startsWith("{") || textData.trim().startsWith("[")) {
+        const parsedData = JSON.parse(textData);
+        console.log(`✅ Successfully parsed JSON from raw blob data`);
+        return parsedData;
+      }
+    } catch (rawError) {
+      console.error("Raw blob read failed:", rawError);
+    }
+
+    // If we get here, the data is truly corrupted or in an unknown format
+    console.warn(
+      "🔄 Could not parse data in any known format. This blob needs to be recreated."
+    );
+    return null;
   } catch (error) {
     console.error("Walrus retrieval error:", error);
     console.log(`Failed to retrieve data from Walrus for blob ID: ${blobId}`);
@@ -381,37 +412,26 @@ export async function getOrCreateSaltForGoogleId(
     console.log(`Generated storage key: ${storageKey}`);
 
     // Try production storage first if signer and policyId are provided
+    const existingBlobId = await getBlobIdByStorageId(await storageKey);
     if (signer && packageId) {
       console.log("Using production storage (Walrus + Seal)");
 
       // Check if we have a blob ID mapping for this Google ID
-      const existingBlobId = blobIdMapping.get(await storageKey);
+      const userData = await retrieveFromWalrus(existingBlobId!);
 
       if (existingBlobId) {
-        console.log(`Found existing blob ID: ${existingBlobId}`);
+        console.log(`Found existing blob ID in Firestore: ${existingBlobId}`);
+        if (userData && userData.salt) {
+          console.log("✅ Successfully retrieved existing salt from Walrus");
+          return userData.salt;
+        } else {
+          console.warn(
+            "⚠️ Retrieved data but no salt found or data is corrupted"
+          );
+          console.log("🔄 Creating new salt and updating storage...");
 
-        try {
-          // Retrieve encrypted data from Walrus
-          const encryptedData = await retrieveFromWalrus(existingBlobId);
-
-          if (encryptedData) {
-            // For now, we'll store the session key in memory (not ideal for production)
-            // In a real app, you'd have a proper session key management system
-            console.log("Found existing encrypted data in Walrus");
-
-            // Since we don't have a proper session key management system yet,
-            // let's fall back to checking memory storage
-            const memoryData = retrieveFromMemory(await storageKey);
-            if (memoryData) {
-              const parsedData = JSON.parse(memoryData);
-              if (parsedData.googleId === googleId && parsedData.salt) {
-                console.log("Returning existing salt from memory backup");
-                return parsedData.salt;
-              }
-            }
-          }
-        } catch (error) {
-          console.error("Error retrieving from Walrus, falling back:", error);
+          // Clear the old, corrupted blob reference
+          console.log(`Clearing corrupted blob reference: ${existingBlobId}`);
         }
       }
     } else if (signer && HARDCODED_POLICY_ID) {
@@ -444,7 +464,9 @@ export async function getOrCreateSaltForGoogleId(
     const dataToStore = {
       googleId,
       salt: newSalt,
+      timestamp: Date.now(),
       createdAt: new Date().toISOString(),
+      migrated: existingBlobId ? true : false, // Track if this was a migration
     };
 
     // Store in memory (always as backup)
@@ -456,22 +478,14 @@ export async function getOrCreateSaltForGoogleId(
       try {
         console.log("Attempting to store in production (Walrus + Seal)");
 
-        // Encrypt the data with Seal
-        const encryptedData = await encryptWithSeal(
-          JSON.stringify(dataToStore),
-          HARDCODED_POLICY_ID,
-          packageId
-        );
-
-        // Store encrypted data in Walrus
         const blobId = await storeInWalrus(
-          encryptedData,
+          dataToStore,
           await storageKey,
           signer
         );
 
         // Save the blob ID mapping
-        blobIdMapping.set(await storageKey, blobId);
+        await storeBlobIdMapping(await storageKey, blobId);
 
         console.log(
           `Data successfully stored in production with blob ID: ${blobId}`
@@ -679,133 +693,6 @@ export async function getEncryptedSalt(
     return null;
   }
 }
-/**
- * Production function: Create a Seal policy for encrypting salts
- * @param signer - Ed25519 keypair for signing the transaction
- * @returns The policy ID that can be used for encryption, or null if Seal is not available
- */
-export async function createSealPolicy(
-  signer: Ed25519Keypair
-): Promise<string | null> {
-  if (!sealClient || !packageId || !suiClient) {
-    console.log(
-      "⚠️  Seal client, package ID, or SUI client not available - cannot create policy"
-    );
-    return null;
-  }
-
-  try {
-    console.log("🔐 Creating Seal policy...");
-
-    // Create a new transaction block
-    const txb = new Transaction();
-
-    // Create a Seal policy using your deployed Seal package
-    // This creates a policy that defines who can decrypt the data
-    const policyResult = txb.moveCall({
-      target: `${packageId}::seal::create_policy`,
-      arguments: [
-        // Add policy parameters based on your Seal package implementation
-        // This might include threshold, key servers, etc.
-        txb.pure.u8(SEAL_THRESHOLD), // threshold
-        // Add other required arguments based on your Seal package
-      ],
-    });
-
-    // Execute the transaction
-    const result = await suiClient.signAndExecuteTransaction({
-      transaction: txb,
-      signer,
-      options: {
-        showEffects: true,
-        showObjectChanges: true,
-      },
-    });
-
-    console.log("🔐 Policy creation transaction:", result.digest);
-
-    // Extract the policy ID from the created objects
-    const createdObjects = result.objectChanges?.filter(
-      (change) => change.type === "created"
-    );
-
-    if (!createdObjects || createdObjects.length === 0) {
-      throw new Error("No objects were created in the policy transaction");
-    }
-
-    // Find the policy object (this depends on your Seal package structure)
-    const policyObject = createdObjects.find(
-      (obj) => obj.type === "created" && obj.objectType?.includes("Policy")
-    );
-
-    if (!policyObject || policyObject.type !== "created") {
-      throw new Error("Policy object not found in transaction results");
-    }
-
-    const policyId = policyObject.objectId;
-    console.log(`✅ Seal policy created with ID: ${policyId}`);
-
-    return policyId;
-  } catch (error) {
-    console.error("❌ Error creating Seal policy:", error);
-    throw new Error(
-      `Failed to create Seal policy: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`
-    );
-  }
-}
-
-/**
- * Utility function: Check if Seal package is properly deployed and accessible
- */
-export async function validateSealPackage(): Promise<boolean> {
-  if (!suiClient || !packageId) {
-    console.log("⚠️  SUI client or package ID not available");
-    return false;
-  }
-
-  try {
-    console.log(`🔍 Validating Seal package: ${packageId}`);
-
-    // Get package info
-    const packageInfo = await suiClient.getObject({
-      id: packageId,
-      options: {
-        showContent: true,
-        showType: true,
-      },
-    });
-
-    if (!packageInfo.data) {
-      console.log("❌ Package not found");
-      return false;
-    }
-
-    console.log("✅ Seal package found and accessible");
-    console.log("Package details:", packageInfo.data);
-
-    return true;
-  } catch (error) {
-    console.error("❌ Error validating Seal package:", error);
-    return false;
-  }
-}
-
-/**
- * Production function: Get blob ID mapping for debugging
- */
-export function getBlobIdMapping(): Map<string, string> {
-  return blobIdMapping;
-}
-
-/**
- * Production function: Clear blob ID mappings
- */
-export function clearBlobIdMapping(): void {
-  blobIdMapping.clear();
-  console.log("Blob ID mappings cleared");
-}
 
 /**
  * Production function: Check if production storage is available
@@ -814,7 +701,7 @@ export async function isProductionStorageAvailable(): Promise<boolean> {
   try {
     await initializeClients();
 
-    if (!walrusClient || !sealClient) {
+    if (!walrusClient) {
       return false;
     }
 

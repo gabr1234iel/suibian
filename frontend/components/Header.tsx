@@ -12,6 +12,7 @@ const SuiBianLogo = () => (
 
 const Header = () => {
   const { isLoggedIn, logout, userAddress, balance, mounted } = useAppContext();
+  // const isLoggedIn = true;
   const router = useRouter();
   const [showWalletPopup, setShowWalletPopup] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -59,8 +60,8 @@ const Header = () => {
   };
 
   const navLinks = [
-    { name: "Why Us", id: "why-us" },
     { name: "How It Works", id: "how-it-works" },
+    { name: "Why Us", id: "why-us" },
     { name: "Marketplace", id: "marketplace" },
     { name: "For Everyone", id: "for-everyone" },
   ];

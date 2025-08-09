@@ -14,7 +14,14 @@ interface AgentFormData {
 }
 
 const CreateAgentPage: React.FC = () => {
-  const { isLoggedIn } = useAppContext();
+  const {
+    isLoggedIn,
+    userGoogleId,
+    userSalt,
+    jwt,
+    ephemeralKeypair,
+    initializeZkLoginSession,
+  } = useAppContext();
   const { createAgent, isTransacting, isReady } = useSuiTransactions();
   const router = useRouter();
   const [formData, setFormData] = useState<AgentFormData>({
@@ -26,6 +33,8 @@ const CreateAgentPage: React.FC = () => {
     tags: [],
   });
   const [tagInput, setTagInput] = useState<string>("");
+  const [isInitializingBlockchain, setIsInitializingBlockchain] =
+    useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -33,7 +42,47 @@ const CreateAgentPage: React.FC = () => {
     }
   }, [isLoggedIn, router]);
 
-  // No initialization needed here anymore - it's handled by the hook
+  // Check if we have the necessary zkLogin data for blockchain transactions
+  const hasZkLoginData = !!(userSalt && jwt && ephemeralKeypair);
+
+  // Function to initialize blockchain connection if needed
+  const ensureBlockchainReady = async (): Promise<boolean> => {
+    // If we already have zkLogin data, we're good
+    if (hasZkLoginData) {
+      console.log(
+        "✅ zkLogin data already available from localStorage restore"
+      );
+      return true;
+    }
+
+    // If we don't have a Google ID, we can't proceed
+    if (!userGoogleId) {
+      console.error("No Google ID available for blockchain initialization");
+      return false;
+    }
+
+    setIsInitializingBlockchain(true);
+
+    try {
+      console.log("🔄 zkLogin data missing, need to re-authenticate...");
+
+      // If we don't have zkLogin session data, user needs to re-authenticate
+      // This is a fallback - with localStorage persistence, this should rarely happen
+      alert(
+        "Your session has expired. Please log out and log back in to continue with blockchain transactions."
+      );
+
+      return false;
+    } catch (error) {
+      console.error("❌ Failed to initialize blockchain connection:", error);
+      alert(
+        "Failed to initialize blockchain connection. Please try logging out and back in."
+      );
+      return false;
+    } finally {
+      setIsInitializingBlockchain(false);
+    }
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -78,6 +127,13 @@ const CreateAgentPage: React.FC = () => {
   ): Promise<void> => {
     e.preventDefault();
 
+    // Ensure blockchain is ready before proceeding
+    const blockchainReady = await ensureBlockchainReady();
+    if (!blockchainReady) {
+      return;
+    }
+
+    // Double-check that the transaction hook is ready
     if (!isReady) {
       alert(
         "Blockchain connection not ready. Please make sure you are logged in and try again."
@@ -141,6 +197,38 @@ Please check the console for detailed error information and try again.`);
     return null;
   }
 
+  // Determine the blockchain status
+  const getBlockchainStatus = () => {
+    if (isInitializingBlockchain) {
+      return {
+        color: "yellow",
+        message: "🔄 Initializing blockchain connection...",
+      };
+    }
+
+    if (hasZkLoginData && isReady) {
+      return {
+        color: "green",
+        message: "✅ Blockchain Ready - Agent will be deployed to Sui Devnet",
+      };
+    }
+
+    if (hasZkLoginData && !isReady) {
+      return {
+        color: "yellow",
+        message: "⏳ Finalizing blockchain connection...",
+      };
+    }
+
+    return {
+      color: "red",
+      message:
+        "🔐 Session expired - please log out and log back in for transactions",
+    };
+  };
+
+  const blockchainStatus = getBlockchainStatus();
+
   return (
     <div className="min-h-screen bg-dark-900 text-white">
       <Header />
@@ -155,23 +243,45 @@ Please check the console for detailed error information and try again.`);
             subscribers
           </p>
 
-          {/* Blockchain Status Indicator */}
-          <div className="flex items-center space-x-2 text-sm">
+          {/* Enhanced Blockchain Status Indicator */}
+          <div className="flex items-center space-x-2 text-sm mb-4">
             <div
-              className={`w-2 h-2 rounded-full ${
-                isReady
-                  ? "bg-green-400 animate-pulse"
-                  : "bg-yellow-400 animate-pulse"
+              className={`w-2 h-2 rounded-full animate-pulse ${
+                blockchainStatus.color === "green"
+                  ? "bg-green-400"
+                  : blockchainStatus.color === "yellow"
+                    ? "bg-yellow-400"
+                    : "bg-red-400"
               }`}
             ></div>
             <span
-              className={`${isReady ? "text-green-400" : "text-yellow-400"}`}
+              className={
+                blockchainStatus.color === "green"
+                  ? "text-green-400"
+                  : blockchainStatus.color === "yellow"
+                    ? "text-yellow-400"
+                    : "text-red-400"
+              }
             >
-              {isReady
-                ? "✅ Blockchain Ready - Agent will be deployed to Sui Devnet"
-                : "⏳ Waiting for complete login data..."}
+              {blockchainStatus.message}
             </span>
           </div>
+
+          {/* Debug info for development */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="bg-dark-800 border border-gray-600 rounded-lg p-4 mb-4">
+              <h4 className="text-sm font-medium text-gray-300 mb-2">
+                Debug Info:
+              </h4>
+              <div className="text-xs text-gray-400 space-y-1">
+                <div>User Google ID: {userGoogleId ? "✅" : "❌"}</div>
+                <div>User Salt: {userSalt ? "✅" : "❌"}</div>
+                <div>JWT Token: {jwt ? "✅" : "❌"}</div>
+                <div>Ephemeral Keypair: {ephemeralKeypair ? "✅" : "❌"}</div>
+                <div>Transaction Hook Ready: {isReady ? "✅" : "❌"}</div>
+              </div>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -346,13 +456,13 @@ Please check the console for detailed error information and try again.`);
             </button>
             <button
               type="submit"
-              disabled={isTransacting || !isReady}
+              disabled={isTransacting || isInitializingBlockchain}
               className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isTransacting
                 ? "Creating on Blockchain..."
-                : !isReady
-                  ? "Waiting for Blockchain..."
+                : isInitializingBlockchain
+                  ? "Initializing Connection..."
                   : "Create Agent on Sui"}
             </button>
           </div>

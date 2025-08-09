@@ -16,11 +16,7 @@ import {
   generateNonce,
   computeZkLoginAddress,
 } from "@mysten/sui/zklogin";
-import {
-  createSealPolicy,
-  getOrCreateSaltForGoogleId,
-  validateSealPackage,
-} from "@/api/nonceApi";
+import { getOrCreateSaltForGoogleId } from "@/api/nonceApi";
 
 const SUI_DEVNET_RPC_URL = "https://fullnode.devnet.sui.io";
 
@@ -79,7 +75,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
   useEffect(() => {
     // Load theme from localStorage on component mount - only on client side
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const savedTheme = localStorage.getItem("theme") as Theme;
       if (savedTheme) {
         setTheme(savedTheme);
@@ -89,7 +85,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
   useEffect(() => {
     // Apply theme to document root - only on client side
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       if (theme === "dark") {
         document.documentElement.classList.add("dark");
       } else {
@@ -186,7 +182,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   // Simplified user data management (removed Firebase dependency)
   const saveUserToLocalStorage = async (userData: UserData): Promise<void> => {
     try {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         console.log("Saving user data to localStorage:", userData.google_id);
         localStorage.setItem(
           `user_${userData.google_id}`,
@@ -203,7 +199,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     googleId: string
   ): Promise<UserData | null> => {
     try {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         console.log("Getting user from localStorage with Google ID:", googleId);
         const userData = localStorage.getItem(`user_${googleId}`);
         if (userData) {
@@ -344,46 +340,6 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     }
   };
 
-  const createAndStoreSealPolicy = async (): Promise<string | null> => {
-    try {
-      if (!ephemeralKeypair) {
-        console.log("No ephemeral keypair available for policy creation");
-        return null;
-      }
-
-      // Check if we already have a stored policy ID
-      const existingPolicyId = localStorage.getItem("seal_policy_id");
-      if (existingPolicyId) {
-        console.log("Using existing Seal policy:", existingPolicyId);
-        return existingPolicyId;
-      }
-
-      // Validate that the Seal package is deployed correctly
-      const isValidPackage = await validateSealPackage();
-      if (!isValidPackage) {
-        console.log(
-          "Seal package validation failed - falling back to memory storage"
-        );
-        return null;
-      }
-
-      // Create a new policy
-      console.log("Creating new Seal policy...");
-      const policyId = await createSealPolicy(ephemeralKeypair);
-
-      if (policyId) {
-        // Store the policy ID for future use
-        localStorage.setItem("seal_policy_id", policyId);
-        console.log("Seal policy created and stored:", policyId);
-      }
-
-      return policyId;
-    } catch (error) {
-      console.error("Error creating/storing Seal policy:", error);
-      return null;
-    }
-  };
-
   const login = async (credentialResponse: any): Promise<void> => {
     console.log("🔑 Login attempt started with current nonce:", nonce);
 
@@ -485,8 +441,6 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         // First-time user - get salt for zkLogin address computation
         console.log("New user detected, creating account...");
         setIsFirstTimeUser(true);
-
-        const policyId = await createAndStoreSealPolicy();
 
         // Get consistent salt for zkLogin (not nonce!)
         const salt = await getOrCreateSaltForGoogleId(

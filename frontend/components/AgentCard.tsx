@@ -45,7 +45,7 @@ const AgentCard: React.FC<{ agent: Agent }> = ({ agent }) => {
 
   return (
     // Wrap the entire card in a Link component
-    <a
+    <Link
       href={`/agents/${agent.id}`}
       className={`bg-dark-800 rounded-lg border border-gray-800 border-t-4 p-4 flex flex-col h-full transition-all duration-200 hover:border-gray-700 hover:shadow-2xl hover:shadow-blue-500/10 cursor-pointer`}
     >
@@ -108,7 +108,7 @@ const AgentCard: React.FC<{ agent: Agent }> = ({ agent }) => {
           </span>
         ))}
       </div>
-    </a>
+    </Link>
   );
 };
 

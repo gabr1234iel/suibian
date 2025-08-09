@@ -1,28 +1,15 @@
 import React, { useState } from "react";
 import { agents } from "../data/agents";
-import AgentCard from "../components/AgentCard";
 import { Agent } from "../types";
 import { useTradingAgents } from "../hooks/useTradingAgents";
 import { TradingAgent } from "../api/marketplaceApi";
 import Header from "@/components/Header";
 import ReviewsCarousel from "@/components/ReviewsCarousel";
-import Footer from "@/components/Footer";
+import Link from "next/dist/client/link";
 
 const MarketplacePage: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [selectedRisk, setSelectedRisk] = useState<string>("All");
-  const [sortBy, setSortBy] = useState<string>("totalReturn");
-
   // Get trading agents from Firebase
-  const {
-    agents: firebaseAgents,
-    loading,
-    error,
-    hasMore,
-    fetchMore,
-    searchAgents,
-    clearSearch,
-  } = useTradingAgents({
+  const { agents: firebaseAgents } = useTradingAgents({
     isActive: true,
     limitCount: 50,
   });
@@ -100,7 +87,7 @@ const MarketplacePage: React.FC = () => {
         <div className="w-full mt-12 mb-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-white">Hot Agents</h2>
-            <a
+            <Link
               href="/browse-agents"
               className="flex items-center gap-1 px-3 py-2 text-white rounded-lg text-sm cursor-pointer hover:text-gray-200"
               style={{ minWidth: 0 }}
@@ -120,7 +107,7 @@ const MarketplacePage: React.FC = () => {
                   d="M9 5l7 7-7 7"
                 />
               </svg>
-            </a>
+            </Link>
           </div>
           <div className="flex flex-col md:flex-row gap-6 w-full">
             {/* Left Table: 1-5 */}
@@ -208,7 +195,7 @@ const MarketplacePage: React.FC = () => {
         <div className="w-full mb-12">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-white">New Agents</h2>
-            <a
+            <Link
               href="/browse-agents"
               className="flex items-center gap-1 px-3 py-2 text-white rounded-lg text-sm cursor-pointer hover:text-gray-200"
               style={{ minWidth: 0 }}
@@ -228,7 +215,7 @@ const MarketplacePage: React.FC = () => {
                   d="M9 5l7 7-7 7"
                 />
               </svg>
-            </a>
+            </Link>
           </div>{" "}
           <div className="relative min-h-[420px]">
             <div className="overflow-x-auto">
@@ -298,14 +285,12 @@ const MarketplacePage: React.FC = () => {
                           </div>
                         </div>
                         <div className="mt-auto flex justify-end">
-                          <button
+                          <Link
+                            href={`/agents/${agent.id}`}
                             className="px-4 py-2 bg-primary-600 text-white rounded-lg text-xs md:text-sm hover:bg-primary-700 transition-colors"
-                            onClick={() => {
-                              window.location.href = `/agents/${agent.id}`;
-                            }}
                           >
                             View Details
-                          </button>
+                          </Link>
                         </div>
                       </div>
                     </div>

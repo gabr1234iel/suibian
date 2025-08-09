@@ -7,16 +7,9 @@ import {
   GoogleLogin,
   type CredentialResponse,
 } from "@react-oauth/google";
-import logo from "../assets/logo.png";
 
 const GOOGLE_CLIENT_ID =
   "1027686321621-8j8ctl1uld0bv85ndac92bd8smr3cim0.apps.googleusercontent.com";
-
-const SuiBianLogo = () => (
-  <div className="flex items-center justify-center space-x-2 mb-4">
-    <img src={logo.src} alt="SuiBian Logo" className="w-12 h-12" />
-  </div>
-);
 
 const LoginPage: React.FC = () => {
   const {
@@ -142,9 +135,6 @@ const LoginPage: React.FC = () => {
                   <div className="flex flex-col items-center justify-center space-y-3">
                     <div className="relative">
                       <div className="animate-spin rounded-full h-8 w-8 border-3 border-blue-500 border-t-transparent"></div>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-xs">🔄</span>
-                      </div>
                     </div>
                     <span className="text-text-secondary animate-pulse">
                       Creating your secure connection...
