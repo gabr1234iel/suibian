@@ -1,8 +1,12 @@
 {
-  "rewrites": [
-    {
-      "source": "/gitbook/:path*",
-      "destination": "https://proxy.gitbook.site/sites/site_WRWm7/:path*"
-    }
-  ]
+    "rewrites": [
+        {
+            "source": "/docs",
+            "destination": "https://proxy.gitbook.site/sites/site_WRWm7"
+        },
+        {
+            "source": "/docs/:match*",
+            "destination": "https://proxy.gitbook.site/sites/site_WRWm7/:match*"
+        }
+    ]
 }
