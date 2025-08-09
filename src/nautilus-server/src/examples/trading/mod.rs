@@ -24,9 +24,13 @@ use shared_crypto::intent::{Intent, IntentMessage};
 
 // Constants - Your DEX configuration
 #[allow(dead_code)]
-const DEX_PACKAGE_ID: &str = "0xf6c779446cf6a60ecf2f158006130a047066583e98caa9fa7ad038cac3a32f82";
+const DEX_PACKAGE_ID: &str = "0x58148fa87d972dd4f2c6110dce24d2320486d7cf56143024c3fae7e3c968961f";
 #[allow(dead_code)]
-const POOL_ID: &str = "0xdb0eb25e57a67e8e606f3b42dd68be6fabafb193c0d90dfd1b47e88982ed321c";
+const POOL_ID: &str = "0xa6a1b60fe6d3c94dcd7533002c46ed122140ade275e8fca1be835a7bdb525aa0";
+#[allow(dead_code)]
+const ADMIN_CAP_ID: &str = "0x6f0d09a193b2ecc8a873f753aa56fce4629e72eb66ae0c47df553767ff788f18";
+#[allow(dead_code)]
+const TREASURY_CAP_ID: &str = "0xd058176e995cd09c255a07ef0b6a63ba812f1eb72eeb8eabd991e885d2e9cf0e";
 #[allow(dead_code)]
 const SUI_RPC_URL: &str = "https://fullnode.devnet.sui.io:443";
 
@@ -143,29 +147,334 @@ fn get_current_timestamp() -> u64 {
 async fn build_and_execute_swap_sui_to_usdc(
     keypair: &SuiKeyPair,
     _wallet_address: &str,
-    _amount: u64,
-    _min_output: u64,
+    amount: u64,
+    min_output: u64,
 ) -> Result<String, EnclaveError> {
-    // For mock, just return a hash based on the operation
-    use fastcrypto::hash::{Blake2b256, HashFunction};
-    let mut hasher = Blake2b256::default();
-    hasher.update(b"swap_sui_to_usdc");
-    let hash = hasher.finalize();
-    Ok(format!("0x{}", Hex::encode(&hash.as_ref()[..8])))
+    info!("Starting build_and_execute_swap_sui_to_usdc: amount={}, min_output={}", amount, min_output);
+    
+    #[cfg(feature = "trading")]
+    {
+        info!("Creating Sui client...");
+        // Create Sui client
+        let client = SuiClientBuilder::default()
+            .build(SUI_RPC_URL)
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to create Sui client: {}", e)))?;
+        info!("Sui client created successfully");
+
+        let sender = derive_sui_address(keypair).parse::<SuiAddress>()
+            .map_err(|e| EnclaveError::GenericError(format!("Invalid sender address: {}", e)))?;
+        
+        let pool_object_id = POOL_ID.parse::<ObjectID>()
+            .map_err(|e| EnclaveError::GenericError(format!("Invalid pool ID: {}", e)))?;
+        
+        // Get SUI coins for the swap
+        let coins = client
+            .coin_read_api()
+            .get_coins(sender, Some("0x2::sui::SUI".to_string()), None, None)
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to get SUI coins: {}", e)))?;
+
+        if coins.data.is_empty() {
+            return Err(EnclaveError::GenericError("No SUI coins available".to_string()));
+        }
+
+        // Get gas coin following SDK examples (function_move_call.rs:46, sign_tx_guide.rs:104-111)
+        let gas_budget = 50000000; // 0.05 SUI for DEX operations
+        let total_needed = amount + gas_budget;
+        
+        let gas_coin = coins.data.into_iter()
+            .find(|coin| coin.balance >= total_needed)
+            .ok_or_else(|| EnclaveError::GenericError(format!("Need at least {} SUI for swap + gas", total_needed)))?;
+
+        // Build programmable transaction following SDK examples
+        let mut ptb = sui_types::programmable_transaction_builder::ProgrammableTransactionBuilder::new();
+        
+        // Add pool as shared object input first (this will be Input(0))
+        ptb.input(sui_types::transaction::CallArg::Object(
+            sui_types::transaction::ObjectArg::SharedObject {
+                id: pool_object_id,
+                initial_shared_version: sui_types::base_types::SequenceNumber::from_u64(175),
+                mutable: true,
+            }
+        )).unwrap();
+        
+        // Split SUI from gas coin for the exact swap amount
+        let amount_arg = ptb.pure(amount).unwrap();
+        let split_coin = ptb.command(sui_types::transaction::Command::SplitCoins(
+            sui_types::transaction::Argument::GasCoin, // Use GasCoin for splitting
+            vec![amount_arg],
+        ));
+        
+        let min_output_arg = ptb.pure(min_output).unwrap();
+        
+        // Call the DEX swap function and capture the returned USDC coin
+        let usdc_coin = ptb.command(sui_types::transaction::Command::MoveCall(Box::new(
+            sui_types::transaction::ProgrammableMoveCall {
+                package: DEX_PACKAGE_ID.parse().unwrap(),
+                module: "dex".parse().unwrap(),
+                function: "swap_sui_to_usdc".parse().unwrap(),
+                type_arguments: vec![],
+                arguments: vec![
+                    sui_types::transaction::Argument::Input(0), // pool (shared object)
+                    split_coin,                                  // coin to swap
+                    min_output_arg                               // min output
+                ],
+            }
+        )));
+        
+        // Transfer the received USDC back to sender
+        let sender_arg = ptb.pure(sender).unwrap();
+        ptb.command(sui_types::transaction::Command::TransferObjects(
+            vec![usdc_coin],
+            sender_arg,
+        ));
+        
+        let pt = ptb.finish();
+        
+        // Get gas price
+        let gas_price = client.read_api().get_reference_gas_price().await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to get gas price: {}", e)))?;
+
+        // Create transaction data with proper gas coin (following SDK examples)
+        let tx_data = sui_types::transaction::TransactionData::new_programmable(
+            sender,
+            vec![gas_coin.object_ref()], // Provide actual gas coin reference
+            pt,
+            gas_budget,
+            gas_price,
+        );
+
+        // Sign transaction
+        let intent_msg = IntentMessage::new(Intent::sui_transaction(), tx_data);
+        
+        use fastcrypto::hash::HashFunction;
+        let mut hasher = sui_types::crypto::DefaultHash::default();
+        hasher.update(bcs::to_bytes(&intent_msg).unwrap());
+        let digest = hasher.finalize().digest;
+        let signature = keypair.sign(&digest);
+
+        let transaction = sui_types::transaction::Transaction::from_data(intent_msg.value, vec![signature]);
+
+        // Execute transaction
+        info!("Submitting swap SUI to USDC transaction...");
+        let tx_response = client
+            .quorum_driver_api()
+            .execute_transaction_block(
+                transaction,
+                sui_json_rpc_types::SuiTransactionBlockResponseOptions::full_content(),
+                None,
+            )
+            .await
+            .map_err(|e| {
+                let error_msg = format!("Transaction execution failed: {}", e);
+                info!("Swap SUI to USDC error: {}", error_msg);
+                EnclaveError::GenericError(error_msg)
+            })?;
+
+        info!("Swap SUI to USDC successful: {}", tx_response.digest);
+        Ok(tx_response.digest.to_string())
+    }
+    
+    #[cfg(not(feature = "trading"))]
+    {
+        // Mock implementation for non-trading builds
+        use fastcrypto::hash::{Blake2b256, HashFunction};
+        let mut hasher = Blake2b256::default();
+        hasher.update(b"swap_sui_to_usdc");
+        let hash = hasher.finalize();
+        Ok(format!("0x{}", Hex::encode(&hash.as_ref()[..8])))
+    }
 }
 
 async fn build_and_execute_swap_usdc_to_sui(
     keypair: &SuiKeyPair,
     _wallet_address: &str,
-    _amount: u64,
-    _min_output: u64,
+    amount: u64,
+    min_output: u64,
 ) -> Result<String, EnclaveError> {
-    // For mock, just return a hash based on the operation
-    use fastcrypto::hash::{Blake2b256, HashFunction};
-    let mut hasher = Blake2b256::default();
-    hasher.update(b"swap_usdc_to_sui");
-    let hash = hasher.finalize();
-    Ok(format!("0x{}", Hex::encode(&hash.as_ref()[..8])))
+    #[cfg(feature = "trading")]
+    {
+        // Create Sui client
+        let client = SuiClientBuilder::default()
+            .build(SUI_RPC_URL)
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to create Sui client: {}", e)))?;
+
+        let sender = derive_sui_address(keypair).parse::<SuiAddress>()
+            .map_err(|e| EnclaveError::GenericError(format!("Invalid sender address: {}", e)))?;
+        
+        let pool_object_id = POOL_ID.parse::<ObjectID>()
+            .map_err(|e| EnclaveError::GenericError(format!("Invalid pool ID: {}", e)))?;
+        
+        // Get USDC coins for the swap
+        let usdc_coin_type = format!("{}::mock_usdc::MOCK_USDC", DEX_PACKAGE_ID);
+        let coins = client
+            .coin_read_api()
+            .get_coins(sender, Some(usdc_coin_type), None, None)
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to get USDC coins: {}", e)))?;
+
+        if coins.data.is_empty() {
+            return Err(EnclaveError::GenericError("No USDC coins available".to_string()));
+        }
+
+        // Find suitable USDC coins for the swap
+        let mut selected_usdc_coins = Vec::new();
+        let mut total_usdc_balance = 0u64;
+        
+        for coin in coins.data {
+            total_usdc_balance += coin.balance;
+            selected_usdc_coins.push((coin.coin_object_id, coin.version, coin.digest));
+            if total_usdc_balance >= amount {
+                break;
+            }
+        }
+        
+        if total_usdc_balance < amount {
+            return Err(EnclaveError::GenericError("Insufficient USDC balance for swap".to_string()));
+        }
+        
+        // Get SUI coins for gas
+        let sui_coins = client
+            .coin_read_api()
+            .get_coins(sender, Some("0x2::sui::SUI".to_string()), None, None)
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to get SUI coins for gas: {}", e)))?;
+
+        if sui_coins.data.is_empty() {
+            return Err(EnclaveError::GenericError("No SUI coins available for gas".to_string()));
+        }
+        
+        let gas_budget = 50000000; // 0.05 SUI for DEX operations
+        let gas_coin = sui_coins.data.into_iter()
+            .find(|coin| coin.balance >= gas_budget)
+            .ok_or_else(|| EnclaveError::GenericError("Insufficient SUI for gas".to_string()))?;
+
+        // Build programmable transaction
+        let mut ptb = sui_types::programmable_transaction_builder::ProgrammableTransactionBuilder::new();
+        
+        // Add pool as the first input (Input(0))
+        ptb.input(sui_types::transaction::CallArg::Object(
+            sui_types::transaction::ObjectArg::SharedObject {
+                id: pool_object_id,
+                initial_shared_version: sui_types::base_types::SequenceNumber::from_u64(175),
+                mutable: true,
+            }
+        )).unwrap();
+        
+        // Add USDC coins as inputs starting from index 1
+        for coin in &selected_usdc_coins {
+            ptb.input(sui_types::transaction::CallArg::Object(
+                sui_types::transaction::ObjectArg::ImmOrOwnedObject(*coin)
+            )).unwrap();
+        }
+        
+        // If we have multiple coins, merge them first
+        let swap_coin = if selected_usdc_coins.len() > 1 {
+            // Coin args start from index 1 (pool is 0)
+            let coin_args: Vec<_> = (1..=selected_usdc_coins.len())
+                .map(|i| sui_types::transaction::Argument::Input(i as u16))
+                .collect();
+            
+            ptb.command(sui_types::transaction::Command::MergeCoins(
+                coin_args[0],
+                coin_args[1..].to_vec(),
+            ));
+            coin_args[0]
+        } else {
+            sui_types::transaction::Argument::Input(1)
+        };
+        
+        // Split USDC coins for exact swap amount
+        let amount_arg = ptb.pure(amount).unwrap();
+        let split_coin = ptb.command(sui_types::transaction::Command::SplitCoins(
+            swap_coin,
+            vec![amount_arg],
+        ));
+        
+        let min_output_arg = ptb.pure(min_output).unwrap();
+        
+        // Call the DEX swap function and capture the returned SUI coin
+        let sui_coin = ptb.command(sui_types::transaction::Command::MoveCall(Box::new(
+            sui_types::transaction::ProgrammableMoveCall {
+                package: DEX_PACKAGE_ID.parse().unwrap(),
+                module: "dex".parse().unwrap(),
+                function: "swap_usdc_to_sui".parse().unwrap(),
+                type_arguments: vec![],
+                arguments: vec![
+                    sui_types::transaction::Argument::Input(0), // pool
+                    split_coin,                                  // coin to swap
+                    min_output_arg                               // min output
+                ],
+            }
+        )));
+        
+        // Transfer the received SUI back to sender
+        let sender_arg = ptb.pure(sender).unwrap();
+        ptb.command(sui_types::transaction::Command::TransferObjects(
+            vec![sui_coin],
+            sender_arg,
+        ));
+        
+        let pt = ptb.finish();
+        
+        // Get gas price
+        let gas_price = client.read_api().get_reference_gas_price().await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to get gas price: {}", e)))?;
+
+        // Use gas coin for transaction
+        let gas_object = (gas_coin.coin_object_id, gas_coin.version, gas_coin.digest);
+
+        // Create transaction data
+        let tx_data = sui_types::transaction::TransactionData::new_programmable(
+            sender,
+            vec![gas_object],
+            pt,
+            gas_budget,
+            gas_price,
+        );
+
+        // Sign transaction
+        let intent_msg = IntentMessage::new(Intent::sui_transaction(), tx_data);
+        
+        use fastcrypto::hash::HashFunction;
+        let mut hasher = sui_types::crypto::DefaultHash::default();
+        hasher.update(bcs::to_bytes(&intent_msg).unwrap());
+        let digest = hasher.finalize().digest;
+        let signature = keypair.sign(&digest);
+
+        let transaction = sui_types::transaction::Transaction::from_data(intent_msg.value, vec![signature]);
+
+        // Execute transaction
+        info!("Submitting swap USDC to SUI transaction...");
+        let tx_response = client
+            .quorum_driver_api()
+            .execute_transaction_block(
+                transaction,
+                sui_json_rpc_types::SuiTransactionBlockResponseOptions::full_content(),
+                None,
+            )
+            .await
+            .map_err(|e| {
+                let error_msg = format!("Transaction execution failed: {}", e);
+                info!("Swap USDC to SUI error: {}", error_msg);
+                EnclaveError::GenericError(error_msg)
+            })?;
+
+        info!("Swap USDC to SUI successful: {}", tx_response.digest);
+        Ok(tx_response.digest.to_string())
+    }
+    
+    #[cfg(not(feature = "trading"))]
+    {
+        // Mock implementation for non-trading builds
+        use fastcrypto::hash::{Blake2b256, HashFunction};
+        let mut hasher = Blake2b256::default();
+        hasher.update(b"swap_usdc_to_sui");
+        let hash = hasher.finalize();
+        Ok(format!("0x{}", Hex::encode(&hash.as_ref()[..8])))
+    }
 }
 
 async fn build_and_execute_withdrawal(
@@ -326,15 +635,15 @@ async fn fetch_balances(address: &str) -> Result<(u64, u64), EnclaveError> {
         let mut sui_balance = 0u64;
         let mut usdc_balance = 0u64;
 
-        // USDC coin type on devnet (this is an example, you may need to update with actual USDC type)
-        const USDC_COIN_TYPE: &str = "0x2::coin::Coin<0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN>";
+        // MOCK_USDC coin type from the DEX contract
+        let usdc_coin_type = format!("{}::mock_usdc::MOCK_USDC", DEX_PACKAGE_ID);
 
         for coin in coins.data {
             match coin.coin_type.as_str() {
                 "0x2::sui::SUI" => {
                     sui_balance += coin.balance;
                 }
-                coin_type if coin_type == USDC_COIN_TYPE => {
+                coin_type if coin_type == &usdc_coin_type => {
                     usdc_balance += coin.balance;
                 }
                 _ => {
@@ -483,7 +792,7 @@ async fn execute_trade_internal(
     state: Arc<AppState>,
     request: ProcessDataRequest<TradeRequest>,
 ) -> Result<ProcessedDataResponse<CommonIntentMessage<TradeResponse>>, EnclaveError> {
-    info!("Executing trade: {} {}", request.payload.action, request.payload.amount);
+    info!("Executing trade: {} {} MIST with min_output: {}", request.payload.action, request.payload.amount, request.payload.min_output);
     
     let wallet_guard = TRADING_WALLET.read().await;
     let wallet_state = wallet_guard.as_ref()
