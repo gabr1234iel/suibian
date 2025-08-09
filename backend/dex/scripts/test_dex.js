@@ -5,16 +5,16 @@ const { decodeSuiPrivateKey } = require('@mysten/sui.js/cryptography');
 
 // Configuration - UPDATE THESE WITH YOUR DEPLOYED CONTRACT INFO
 const NETWORK = 'devnet';
-const PACKAGE_ID = '0xYOUR_PACKAGE_ID'; // Replace with your deployed package ID
-const POOL_ID = '0xYOUR_POOL_ID';       // Replace with your pool ID after deployment
-const ADMIN_CAP_ID = '0xYOUR_ADMIN_CAP_ID'; // Replace with admin cap ID
-const TREASURY_CAP_ID = '0xYOUR_TREASURY_CAP_ID'; // Replace with USDC treasury cap ID
+const PACKAGE_ID = '0x58148fa87d972dd4f2c6110dce24d2320486d7cf56143024c3fae7e3c968961f'; // Replace with your deployed package ID
+const POOL_ID = '0xa6a1b60fe6d3c94dcd7533002c46ed122140ade275e8fca1be835a7bdb525aa0';       // Replace with your pool ID after deployment
+const ADMIN_CAP_ID = '0x6f0d09a193b2ecc8a873f753aa56fce4629e72eb66ae0c47df553767ff788f18'; // Replace with admin cap ID
+const TREASURY_CAP_ID = '0xd058176e995cd09c255a07ef0b6a63ba812f1eb72eeb8eabd991e885d2e9cf0e'; // Replace with USDC treasury cap ID
 
 // Initialize client
 const client = new SuiClient({ url: getFullnodeUrl(NETWORK) });
 
 // User wallet - replace with your private key
-const USER_PRIVATE_KEY = "suiprivkey1qrs7dm44uc7lvnff69wd8zfc6p3az2g07zm4e6zjqjaxc7n6fqyac9nhuzy";
+const USER_PRIVATE_KEY = "suiprivkey1qqedr5y058s9z2qy53kf9nql77c4a73h4mnxygl8hrqlf4f904amg6wzvh9";
 const userDecoded = decodeSuiPrivateKey(USER_PRIVATE_KEY);
 const userKeypair = Ed25519Keypair.fromSecretKey(userDecoded.secretKey);
 const userAddress = userKeypair.getPublicKey().toSuiAddress();
@@ -400,4 +400,4 @@ console.log('3. Make sure you have enough SUI in your wallet for gas fees');
 console.log('4. Run this script with: node dex_test.js\n');
 
 // Uncomment the line below to run the test
-// main().catch(console.error);
+main().catch(console.error);
