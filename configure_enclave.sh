@@ -5,16 +5,14 @@
 
 # Additional information on this script. 
 show_help() {
-    echo "configure_enclave.sh - Launch AWS EC2 instance with Nitro Enclaves and configure allowed endpoints. "
+    echo "configure_enclave.sh - Launch AWS EC2 instance with Nitro Enclaves for Trading Agent"
     echo ""
-    echo "This script launches an AWS EC2 instance (m5.xlarge) with Nitro Enclaves enabled."
+    echo "This script launches an AWS EC2 instance (m5.xlarge) with Nitro Enclaves enabled"
+    echo "and configures it for the Sui Trading Agent with DEX integration."
     echo "By default, it uses the AMI ami-085ad6ae776d8f09c, which works in us-east-1."
     echo "If you change the REGION, you must also supply a valid AMI for that region."
     echo ""
     echo "Pre-requisites:"
-    echo "  - allowed_endpoints.yaml is configured with all necessary endpoints that the enclave needs"
-    echo "    access to. This is necessary since the enclave does not come with Internet connection,"
-    echo "    all traffics needs to be preconfigured for traffic forwarding."
     echo "  - AWS CLI is installed and configured with proper credentials"
     echo "  - The environment variable KEY_PAIR is set (e.g., export KEY_PAIR=my-key)"
     echo "  - The instance type 'm5.xlarge' must be supported in your account/region for Nitro Enclaves"
@@ -23,8 +21,12 @@ show_help() {
     echo "  export KEY_PAIR=<your-key-pair-name>"
     echo "  # optional: export REGION=<your-region>  (defaults to us-east-1)"
     echo "  # optional: export AMI_ID=<your-ami-id>  (defaults to ami-085ad6ae776d8f09c)"
-    echo "  # optional: export API_ENV_VAR_NAME=<env-var-name> (defaults to 'API_KEY')"
-    echo "  ./configure_enclave.sh"
+    echo "  ./configure_enclave.sh trading"
+    echo ""
+    echo "The script automatically configures:"
+    echo "  - Network access to Sui RPC endpoints (fullnode.devnet.sui.io:443)"
+    echo "  - Traffic forwarding for blockchain connectivity"
+    echo "  - Security groups for enclave access"
     echo ""
     echo "Options:"
     echo "  -h, --help    Show this help message"
@@ -49,7 +51,7 @@ AMI_ID="${AMI_ID:-ami-085ad6ae776d8f09c}"
 # Environment variable name for our secret; default is 'API_KEY'
 API_ENV_VAR_NAME="${API_ENV_VAR_NAME:-API_KEY}"
 
-EXAMPLE="${1:-${EXAMPLE:-weather}}" # defaults to weather
+EXAMPLE="${1:-${EXAMPLE:-trading}}" # defaults to trading
 ALLOWLIST_PATH="src/nautilus-server/src/examples/${EXAMPLE}/allowed_endpoints.yaml"
 
 ############################
@@ -118,21 +120,14 @@ else
 fi
 
 #########################################
-# Decide about secrets (3 scenarios)
+# Decide about secrets
 #########################################
-# Check if this is the seal example - skip AWS secret prompts entirely
-if [[ "$EXAMPLE" == "seal-example" ]]; then
-    echo "Seal example detected. Configuring without AWS secrets..."
-    USE_SECRET="n"
-    IS_SEAL_EXAMPLE=true
-else
-    read -p "Do you want to use a secret? (y/n): " USE_SECRET
+read -p "Do you want to use a secret? (y/n): " USE_SECRET
 
-    # Validate input
-    if [[ ! "$USE_SECRET" =~ ^[YyNn]$ ]]; then
-        echo "Error: Please enter 'y' or 'n'"
-        exit 1
-    fi
+# Validate input
+if [[ ! "$USE_SECRET" =~ ^[YyNn]$ ]]; then
+    echo "Error: Please enter 'y' or 'n'"
+    exit 1
 fi
 
 if [[ "$USE_SECRET" =~ ^[Yy]$ ]]; then
@@ -378,53 +373,18 @@ else
         sed -i '/echo.*secrets\.json/d' expose_enclave.sh 2>/dev/null || true
     fi
     
-    # Handle seal example specifically
-    if [ "$IS_SEAL_EXAMPLE" = true ]; then
-        echo "Configuring seal example..."
-        
-        # Add empty secrets.json (required by run.sh which waits for it on VSOCK)
-        if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i '' "/# Secrets-block/a\\
-# Seal example: create empty secrets.json (required by run.sh)\\
-echo 'Creating empty secrets.json for seal example...'\\
+    # Add empty secrets.json for compatibility with run.sh
+    echo "Standard no-secret configuration applied."
+    
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed -i '' "/# Secrets-block/a\\
+# No secrets: create empty secrets.json for compatibility\\
 echo '{}' > secrets.json\\
 " expose_enclave.sh
-            
-            # Expose port 3001 for localhost-only access to seal init endpoint
-            sed -i '' "/socat TCP4-LISTEN:3000,reuseaddr,fork VSOCK-CONNECT:\$ENCLAVE_CID:3000 &/a\\
-\\
-# Seal example: Expose port 3001 for localhost-only access to init endpoint\\
-echo \"Exposing seal init endpoint on localhost:3001...\"\\
-socat TCP4-LISTEN:3001,bind=127.0.0.1,reuseaddr,fork VSOCK-CONNECT:\$ENCLAVE_CID:3001 &\\
-" expose_enclave.sh
-        else
-            sed -i "/# Secrets-block/a\\
-# Seal example: create empty secrets.json (required by run.sh)\\
-echo 'Creating empty secrets.json for seal example...'\\
-echo '{}' > secrets.json" expose_enclave.sh
-            
-            # Expose port 3001 for localhost-only access to seal init endpoint
-            sed -i "/socat TCP4-LISTEN:3000,reuseaddr,fork VSOCK-CONNECT:\$ENCLAVE_CID:3000 &/a\\
-\\
-# Seal example: Expose port 3001 for localhost-only access to init endpoint\\
-echo \"Exposing seal init endpoint on localhost:3001...\"\\
-socat TCP4-LISTEN:3001,bind=127.0.0.1,reuseaddr,fork VSOCK-CONNECT:\$ENCLAVE_CID:3001 &" expose_enclave.sh
-        fi
     else
-        # Regular no-secret configuration
-        echo "Standard no-secret configuration applied."
-        
-        # Add empty secrets.json for compatibility with run.sh
-        if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i '' "/# Secrets-block/a\\
-# No secrets: create empty secrets.json for compatibility\\
-echo '{}' > secrets.json\\
-" expose_enclave.sh
-        else
-            sed -i "/# Secrets-block/a\\
+        sed -i "/# Secrets-block/a\\
 # No secrets: create empty secrets.json for compatibility\\
 echo '{}' > secrets.json" expose_enclave.sh
-        fi
     fi
 fi
 
@@ -447,16 +407,6 @@ sudo systemctl start nitro-enclaves-allocator.service && sudo systemctl enable n
 sudo systemctl start docker && sudo systemctl enable docker
 sudo systemctl enable nitro-enclaves-vsock-proxy.service
 EOF
-
-# Add Rust installation for seal example only
-if [ "$IS_SEAL_EXAMPLE" = true ]; then
-    cat <<'EOF' >> user-data.sh
-
-# Install Rust and cargo for seal example
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | su - ec2-user -c "sh -s -- -y"
-echo 'source $HOME/.cargo/env' >> /home/ec2-user/.bashrc
-EOF
-fi
 
 # Append endpoint configuration to the vsock-proxy YAML if endpoints were provided.
 if [ -n "$ENDPOINTS" ]; then
@@ -566,23 +516,6 @@ rm "$tmp_traffic"
 
 echo "updated run.sh"
 
-# Add seal-specific vsock listener for port 3001
-if [ "$IS_SEAL_EXAMPLE" = true ]; then
-    echo "Adding seal-specific port 3001 vsock listener to run.sh..."
-    if [[ "$(uname)" == "Darwin" ]]; then
-        sed -i '' '/socat VSOCK-LISTEN:3000,reuseaddr,fork TCP:localhost:3000 &/a\
-\
-# For seal-example: Listen on VSOCK Port 3001 and forward to localhost 3001\
-socat VSOCK-LISTEN:3001,reuseaddr,fork TCP:localhost:3001 &' src/nautilus-server/run.sh
-    else
-        sed -i '/socat VSOCK-LISTEN:3000,reuseaddr,fork TCP:localhost:3000 &/a\
-\
-# For seal-example: Listen on VSOCK Port 3001 and forward to localhost 3001\
-socat VSOCK-LISTEN:3001,reuseaddr,fork TCP:localhost:3001 &' src/nautilus-server/run.sh
-    fi
-    echo "Added port 3001 vsock listener for seal example"
-fi
-
 ############################
 # Create or Use Security Group
 ############################
@@ -672,17 +605,9 @@ echo "[*] ssh inside the launched EC2 instance. e.g. \`ssh ec2-user@\"$PUBLIC_IP
 echo "[*] Clone or copy the repo with the above generated code."
 echo "[*] Inside repo directory: 'make EXAMPLE=$EXAMPLE' and then 'make run'"
 echo "[*] Run expose_enclave.sh from within the EC2 instance to expose the enclave to the internet."
-
-if [ "$IS_SEAL_EXAMPLE" = true ]; then
-    echo ""
-    echo "=== SEAL EXAMPLE INSTRUCTIONS ==="
-    echo "[*] After running expose_enclave.sh, initialize the enclave with encrypted secrets:"
-    echo "    ./src/nautilus-server/target/debug/seal-init-client \\"
-    echo "        --api-key <YOUR_API_KEY> \\"
-    echo "        --package-id <PACKAGE_ID> \\"
-    echo "        --key-servers <KEY_SERVER_IDS> \\"
-    echo "        --threshold <THRESHOLD>"
-    echo ""
-    echo "[*] You can add multiple secrets by calling the endpoint multiple times."
-    echo "[*] The init endpoint is exposed on localhost:3001 for host-only access."
-fi
+echo ""
+echo "=== TRADING AGENT READY ==="
+echo "[*] Once the enclave is running, you can test the trading endpoints:"
+echo "    curl http://$PUBLIC_IP:3000/ping"
+echo "    curl -X POST http://$PUBLIC_IP:3000/init_wallet -H 'Content-Type: application/json' -d '{\"payload\": {\"owner_address\": \"0x...\"}}"
+echo "[*] See TRADE.md for complete API documentation and examples."

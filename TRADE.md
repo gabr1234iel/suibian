@@ -38,9 +38,6 @@ The server will start and show:
 curl http://localhost:3000/ping
 # Should return: "Trading Agent TEE v1.0 - Ready!"
 
-# Test health check
-curl http://localhost:3000/health
-# Should return: {"pk":"mock_public_key","endpoints_status":{"system":true}}
 ```
 
 ### Initialize a Trading Wallet
@@ -117,41 +114,81 @@ This will return real SUI balance from the devnet blockchain:
 }
 ```
 
-### Execute Mock Trades
+### Execute Real DEX Trades
+
+**Important**: Set realistic `min_output` values based on current pool liquidity to avoid slippage errors.
+
+Current DEX Pool Status:
+- **Package ID**: `0x58148fa87d972dd4f2c6110dce24d2320486d7cf56143024c3fae7e3c968961f`
+- **Pool ID**: `0xa6a1b60fe6d3c94dcd7533002c46ed122140ade275e8fca1be835a7bdb525aa0`
+- **SUI Reserve**: ~6.978 SUI
+- **USDC Reserve**: ~43.17 USDC
+- **Fee**: 0.3%
 
 ```bash
-# Mock sell SUI for USDC
+# Sell 0.09 SUI for USDC (expect ~0.55 USDC output)
 curl -X POST http://localhost:3000/execute_trade \
   -H "Content-Type: application/json" \
   -d '{
     "payload": {
       "action": "sell_sui",
-      "amount": 500000000,
-      "min_output": 900000
+      "amount": 90000000,
+      "min_output": 500000
     }
   }'
 
-# Mock buy SUI with USDC
+# Buy SUI with 10 USDC (expect ~2.94 SUI output)
 curl -X POST http://localhost:3000/execute_trade \
   -H "Content-Type: application/json" \
   -d '{
     "payload": {
       "action": "buy_sui", 
-      "amount": 1000000,
-      "min_output": 450000000
+      "amount": 10000000,
+      "min_output": 2900000000
     }
   }'
 ```
 
-### Withdraw Funds
+**Calculate Expected Output**:
+```bash
+# Check expected swap output before trading
+sui client call --package 0x58148fa87d972dd4f2c6110dce24d2320486d7cf56143024c3fae7e3c968961f \
+  --module dex --function calculate_swap_output \
+  --args 0xa6a1b60fe6d3c94dcd7533002c46ed122140ade275e8fca1be835a7bdb525aa0 90000000 true \
+  --gas-budget 10000000
+```
+
+### Other Available Endpoints
 
 ```bash
+# Simple SUI transfer
+curl -X POST http://localhost:3000/simple_transfer \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload": {
+      "recipient": "0x05509732114820e9dec0c2a7405690af986400cf2ac50792fb84430be1a2ec87",
+      "amount": 100000000
+    }
+  }'
+
+# Withdraw funds
 curl -X POST http://localhost:3000/withdraw \
   -H "Content-Type: application/json" \
   -d '{
     "payload": {
       "recipient": "0x742d35cc6ba1c4bf0bb4d8c7d3c4b0ce15c4c51eb8b6e7e1a1d4b5c3b4f6a7b8",
       "amount": null
+    }
+  }'
+
+# Subscription withdraw 
+curl -X POST http://localhost:3000/subscription_withdraw \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload": {
+      "agent_id": "0x83e0dd1f1df2c174f353a3b0cd0fc03141690f3f2ebd7bfbbea409f8db409454",
+      "amount": 100000000,
+      "recipient": "0x05509732114820e9dec0c2a7405690af986400cf2ac50792fb84430be1a2ec87"
     }
   }'
 ```
@@ -218,160 +255,8 @@ sh expose_enclave.sh
 3. **Wallet Status**: Returns real-time blockchain balances and wallet info
 4. **Basic API Structure**: All endpoints are functional with proper error handling
 5. **Devnet Integration**: Connected to `https://fullnode.devnet.sui.io:443`
-
-### 🔄 Mock Implementations (Need Real Implementation)
-1. **Trade Execution**: Currently returns mock transaction digests
-2. **Withdrawal**: Currently returns mock transaction digests
-3. **Move Contract Integration**: No actual DEX contract calls yet
-
-## 4. Comprehensive TODO List for Production
-
-### Priority 1: Core Trading Functionality
-
-#### A. Real Transaction Building
-- [ ] **Implement `build_and_execute_swap_usdc_to_sui()`**
-  - Use `sui-sdk` to build actual Move call transactions
-  - Integrate with a real DEX (e.g., Cetus, Turbos, or custom DEX)
-  - Sign transactions with enclave keypair
-  - Submit to network and return real transaction digest
-  
-- [ ] **Implement `build_and_execute_swap_sui_to_usdc()`**
-  - Mirror above for opposite direction
-  - Handle coin selection and merging logic
-  - Implement proper slippage protection
-
-- [ ] **Implement `build_and_execute_withdrawal()`**
-  - Build transfer/pay transactions using Sui SDK
-  - Support partial and full withdrawals
-  - Handle gas payment logic
-
-#### B. DEX Integration
-- [ ] **Choose and Deploy DEX Contracts**
-  - Deploy on Sui devnet (recommend Cetus or Turbos protocol)
-  - Or implement custom AMM contracts in `move/trading/`
-  - Update `DEX_PACKAGE_ID` and `POOL_ID` constants
-
-- [ ] **Pool Discovery and Management**
-  - Implement pool discovery for SUI/USDC pairs
-  - Handle multiple liquidity pools
-  - Pool health checks and selection logic
-
-- [ ] **Price and Liquidity Checks**
-  - Fetch current pool prices before trades
-  - Implement minimum liquidity checks
-  - Calculate expected output amounts
-
-#### C. Enhanced Wallet Management
-- [ ] **Multi-Coin Support**
-  - Support for more token types beyond SUI/USDC
-  - Dynamic coin type discovery
-  - Proper coin metadata handling
-
-- [ ] **Gas Management**
-  - Implement intelligent gas estimation
-  - Reserve SUI for gas fees
-  - Handle gas payment edge cases
-
-### Priority 2: Trading Logic and Safety
-
-#### A. Trading Strategies
-- [ ] **Price Oracle Integration**
-  - Integrate with Pyth or Switchboard price feeds
-  - Implement price deviation checks
-  - Market making strategies
-
-- [ ] **Order Management**
-  - Support for limit orders (if DEX supports)
-  - Order book integration
-  - Position sizing logic
-
-- [ ] **Risk Management**
-  - Maximum trade size limits
-  - Daily volume limits per wallet
-  - Slippage protection mechanisms
-
-#### B. Advanced Features
-- [ ] **Multi-Signature Support**
-  - Support for multi-sig wallet ownership
-  - Threshold signature schemes
-  - Approval workflows
-
-- [ ] **Batch Operations**
-  - Batch multiple trades in single transaction
-  - Gas optimization for multiple operations
-  - Atomic swap guarantees
-
-### Priority 3: Production Operations
-
-#### A. Monitoring and Logging
-- [ ] **Trade Monitoring**
-  - Real-time trade execution monitoring
-  - Failed transaction analysis
-  - Performance metrics collection
-
-- [ ] **Health Monitoring**
-  - RPC endpoint health checks
-  - Balance monitoring and alerts
-  - Enclave health diagnostics
-
-#### B. Error Handling and Recovery
-- [ ] **Robust Error Handling**
-  - Retry logic for failed RPC calls
-  - Transaction failure recovery
-  - Network partition handling
-
-- [ ] **State Recovery**
-  - Wallet state persistence (encrypted)
-  - Recovery from enclave restarts
-  - Backup and restore procedures
-
-### Priority 4: Security and Compliance
-
-#### A. Enhanced Security
-- [ ] **Signature Verification**
-  - Implement proper message signing
-  - Verify all incoming requests
-  - Nonce-based replay protection
-
-- [ ] **Access Control**
-  - Owner-only operations enforcement
-  - Role-based access control
-  - API key management (if needed)
-
-#### B. Audit and Compliance
-- [ ] **Transaction Logging**
-  - Immutable trade logs
-  - Compliance reporting
-  - Audit trail generation
-
-- [ ] **Security Audits**
-  - Code review and security audit
-  - Penetration testing
-  - Formal verification (for Move contracts)
-
-### Priority 5: User Experience
-
-#### A. API Improvements
-- [ ] **Better Error Messages**
-  - User-friendly error descriptions
-  - Detailed failure reasons
-  - Suggested corrective actions
-
-- [ ] **API Documentation**
-  - Complete OpenAPI/Swagger spec
-  - Example requests/responses
-  - SDK generation for clients
-
-#### B. Integration Support
-- [ ] **Webhook Support**
-  - Trade completion notifications
-  - Balance change alerts
-  - System status updates
-
-- [ ] **GraphQL API**
-  - Flexible querying interface
-  - Real-time subscriptions
-  - Historical data access
+6. **Real DEX Trading**: Executes actual swaps on deployed DEX contract
+7. **Simple Transfers**: Real SUI transfers between addresses
 
 ## 5. Development Workflow
 
@@ -395,16 +280,14 @@ sh expose_enclave.sh
 
 ## 6. Important Notes
 
-1. **Real vs Mock**: Currently balance fetching is REAL (connects to Sui devnet), but trade execution is MOCK (returns fake transaction digests)
+1. **Ephemeral Wallet**: The wallet private key exists only in enclave memory. If the enclave restarts, a new wallet is generated
 
-2. **Ephemeral Wallet**: The wallet private key exists only in enclave memory. If the enclave restarts, a new wallet is generated
+2. **Owner Control**: Only the address specified during `init_wallet` can withdraw funds
 
-3. **Owner Control**: Only the address specified during `init_wallet` can withdraw funds
+3. **Devnet Testing**: All testing should be done on Sui devnet first before mainnet
 
-4. **Devnet Testing**: All testing should be done on Sui devnet first before mainnet
+4. **Gas Costs**: Remember to account for Sui gas costs in all transaction building
 
-5. **Gas Costs**: Remember to account for Sui gas costs in all transaction building
-
-6. **Network Dependencies**: Enclave needs network access to Sui RPC endpoints (`fullnode.devnet.sui.io:443`)
+5. **Network Dependencies**: Enclave needs network access to Sui RPC endpoints (`fullnode.devnet.sui.io:443`)
 
 This setup provides a solid foundation for a Sui-based trading agent running in AWS Nitro Enclaves, with real blockchain integration for balance checking and a clear path forward for implementing full trading functionality.

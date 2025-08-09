@@ -5,37 +5,16 @@ use fastcrypto::ed25519::Ed25519KeyPair;
 use std::fmt;
 
 pub mod examples {
-    #[cfg(feature = "twitter")]
-    pub mod twitter;
-
-    #[cfg(feature = "weather")]
-    pub mod weather;
-
     #[cfg(feature = "trading")]
     pub mod trading;
-
-    #[cfg(feature = "seal-example")]
-    pub mod seal_example;
 }
 
 pub mod app {
-    #[cfg(feature = "twitter")]
-    pub use crate::examples::twitter::*;
-
-    #[cfg(feature = "weather")]
-    pub use crate::examples::weather::{process_data, WeatherRequest, WeatherResponse};
-
     #[cfg(feature = "trading")]
     pub use crate::examples::trading::{
         InitWalletRequest, InitWalletResponse,
         TradeRequest, TradeResponse, WalletStatusRequest, WalletStatusResponse,
         WithdrawRequest, WithdrawResponse,
-    };
-
-    #[cfg(feature = "seal-example")]
-    pub use crate::examples::seal_example::{
-        complete_parameter_load, init_parameter_load, ping, process_data, spawn_host_init_server,
-        types, PingResponse,
     };
 }
 
@@ -45,7 +24,7 @@ pub mod common;
 pub struct AppState {
     /// Ephemeral keypair on boot
     pub eph_kp: Ed25519KeyPair,
-    /// API key when needed (for weather/twitter APIs)
+    /// API key for external services (optional)
     pub api_key: String,
 }
 

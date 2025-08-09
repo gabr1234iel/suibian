@@ -13,13 +13,12 @@ use warp::Filter;
 async fn main() -> Result<()> {
     let eph_kp = Ed25519KeyPair::generate(&mut rand::thread_rng());
 
-    // API key for external services (weather API, Twitter API, etc.)
-    // Not needed for trading but kept for compatibility
+    // API key for external services - kept for compatibility
     let api_key = std::env::var("API_KEY").unwrap_or_else(|_| String::new());
 
     let state = Arc::new(AppState { eph_kp, api_key });
 
-    // Feature-specific startup messages
+    // Trading Agent startup
     #[cfg(feature = "trading")]
     {
         println!("🚀 Starting Nautilus Trading Agent...");
@@ -30,24 +29,6 @@ async fn main() -> Result<()> {
         println!("   POST /withdraw            - Withdraw funds (owner only)");
         println!("   POST /simple_transfer     - Simple SUI transfer (test signature)");
         println!("   POST /subscription_withdraw - Withdraw funds through subscription manager (subscribers only)");
-    }
-
-    #[cfg(feature = "weather")]
-    {
-        println!("🌤️ Starting Nautilus Weather Service...");
-        println!("   POST /process_data        - Get weather data");
-    }
-
-    #[cfg(feature = "twitter")]
-    {
-        println!("🐦 Starting Nautilus Twitter Service...");
-        println!("   POST /process_data        - Process Twitter data");
-    }
-
-    #[cfg(feature = "seal-example")]
-    {
-        println!("🔒 Spawning host-only init server for Seal...");
-        nautilus_server::app::spawn_host_init_server(state.clone()).await?;
     }
 
     let cors = warp::cors()
@@ -130,14 +111,8 @@ fn ping_response() -> &'static str {
     #[cfg(feature = "trading")]
     return "Trading Agent TEE v1.0 - Ready!";
     
-    #[cfg(feature = "weather")]
-    return "Weather Service - Pong!";
-    
-    #[cfg(feature = "twitter")]
-    return "Twitter Service - Pong!";
-    
-    #[cfg(not(any(feature = "trading", feature = "weather", feature = "twitter")))]
-    return "Pong!";
+    #[cfg(not(feature = "trading"))]
+    return "Nautilus TEE - Ready!";
 }
 
 fn with_state(state: Arc<AppState>) -> impl Filter<Extract = (Arc<AppState>,), Error = std::convert::Infallible> + Clone {

@@ -6,10 +6,6 @@ authors = ["Mysten Labs <build@mystenlabs.com>"]
 license = "Apache-2.0"
 repository = "https://github.com/MystenLabs/nautilus"
 
-[[bin]]
-name = "seal-cli"
-path = "src/bin/seal_cli.rs"
-required-features = ["seal-example"]
 
 [workspace]
 
@@ -38,13 +34,7 @@ sui-sdk = { git = "https://github.com/MystenLabs/sui", rev = "42ba6c0", optional
 sui-types = { git = "https://github.com/MystenLabs/sui", rev = "42ba6c0", optional = true }
 sui-json-rpc-types = { git = "https://github.com/MystenLabs/sui", rev = "42ba6c0", optional = true }
 shared_crypto = { git = "https://github.com/MystenLabs/sui", rev = "42ba6c0", package = "shared-crypto" }
-seal-crypto = { git = "https://github.com/MystenLabs/seal", rev = "7ffad8191f37171da6fd1ede4ef3dcb04f5989f9", package = "crypto" }
-seal-key-server = { git = "https://github.com/MystenLabs/seal", rev = "7ffad8191f37171da6fd1ede4ef3dcb04f5989f9", package = "key-server" }
-regex = { version = "1.5", optional = true }
 
 [features]
-default = ["weather"]
-weather = []
-twitter = ["regex"]
+default = ["trading"]
 trading = ["sui-sdk", "sui-types", "sui-json-rpc-types"]
-seal-example = ["sui-sdk", "sui-types", "sui-json-rpc-types"]
