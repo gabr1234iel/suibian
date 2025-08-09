@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/gitbook/:path*",
-      "destination": "https://proxy.gitbook.site/sites/site_WRWm7/:path*"
+      "destination": "https://proxy.gitbook.site/sites/site_WRWm7/:docs*"
     }
   ]
 }
