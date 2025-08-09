@@ -9,8 +9,8 @@ ENCLAVE_CID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveCID")
 
 sleep 5
 # Secrets-block
-SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id arn:aws:secretsmanager:ap-southeast-1:886436967137:secret:weather-secret-kK8VyN --region ap-southeast-1 | jq -r .SecretString)
-echo "$SECRET_VALUE" | jq -R '{"API_KEY": .}' > secrets.json
+# No secrets: create empty secrets.json for compatibility
+echo '{}' > secrets.json
 # Seal example: create empty secrets.json (required by run.sh)
 # This section will be populated by configure_enclave.sh based on secret configuration
 
