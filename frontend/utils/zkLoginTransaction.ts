@@ -101,11 +101,14 @@ export class ZkLoginTransactionManager {
     }
 
     try {
-      // Set sender address and gas budget
+      // Set sender address and gas budget (match test script)
       transaction.setSender(this.zkLoginState.userAddress);
-      transaction.setGasBudget(10000000); // 0.01 SUI gas budget
+      
+      // Use the same gas budget as the test script
+      transaction.setGasBudget(15000000); // 0.015 SUI (exactly like test script)
+      
       console.log('Transaction sender set to:', this.zkLoginState.userAddress);
-      console.log('Gas budget set to: 0.01 SUI');
+      console.log('Gas budget set to: 0.015 SUI (matching test script)');
 
       // Build the transaction
       console.log('Building transaction...');
@@ -191,12 +194,26 @@ export class ZkLoginTransactionManager {
 
       return result;
     } catch (error) {
-      console.error('Failed to sign and execute transaction:', error);
-      console.error('Error details:', {
+      console.error('❌ Failed to sign and execute transaction:', error);
+      console.error('❌ Error details:', {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         error
       });
+      
+      // If it's an execution error, log the abort code
+      if (error instanceof Error && error.message) {
+        console.error('❌ Full error message:', error.message);
+        if (error.message.includes('abort') || error.message.includes('ABORT')) {
+          console.error('🚨 Move abort detected! This indicates a smart contract assertion failed.');
+          console.error('🔍 Possible causes:');
+          console.error('  - Agent not active (EAgentNotActive)');
+          console.error('  - Insufficient payment (EInsufficientPayment)');
+          console.error('  - User already subscribed');
+          console.error('  - Invalid agent or subscription manager ID');
+        }
+      }
+      
       throw error;
     }
   }
@@ -214,6 +231,11 @@ export class ZkLoginTransactionManager {
   // Check if zkLogin is initialized
   isInitialized(): boolean {
     return this.zkLoginState !== null;
+  }
+
+  // Get the SuiClient instance
+  getClient(): SuiClient {
+    return this.client;
   }
 
   // Clear zkLogin state (for logout)

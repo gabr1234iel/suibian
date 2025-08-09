@@ -1,14 +1,41 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";  
 import { useRouter } from "next/router";
 import { agents as mockAgents } from "../../data/agents";
 import { Agent } from "../../types";
 import { useTradingAgent } from "../../hooks/useTradingAgents";
+import { useSuiTransactions } from "../../hooks/useSuiTransactions";
+import { useAppContext } from "../../context/AppContext";
+import { checkUserSubscription, UserSubscription } from "../../api/marketplaceApi";
 import Header from "@/components/Header";
+import SuccessModal from "@/components/SuccessModal";
 
 const AgentDetailPage: React.FC = () => {
   const router = useRouter();
   const { id } = router.query;
+  const { isLoggedIn, userAddress } = useAppContext();
+  const { subscribeToAgent, isTransacting, getAgentInfo } = useSuiTransactions();
+  
   const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
+  const [subscriptionData, setSubscriptionData] = useState<UserSubscription | null>(null);
+  const [realSubscriberCount, setRealSubscriberCount] = useState<number | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [subscriptionResult, setSubscriptionResult] = useState<{
+    transactionDigest?: string;
+    agentName?: string;
+  }>({});
+
+  // Generate stable random data based on agent ID
+  const generateStableRandom = useCallback((seed: string, min: number, max: number, decimals: number = 2): number => {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    const normalized = Math.abs(hash) / 2147483647; // Normalize to 0-1
+    const value = min + (normalized * (max - min));
+    return parseFloat(value.toFixed(decimals));
+  }, []);
 
   // Fetch agent from Firestore
   const { agent: firebaseAgent, loading } = useTradingAgent(
@@ -18,27 +45,30 @@ const AgentDetailPage: React.FC = () => {
   // Map TradingAgent to Agent type
   const agent: Agent | undefined = useMemo(() => {
     if (firebaseAgent) {
+      // Use real subscriber count if available, otherwise use Firebase data
+      const subscriberCount = realSubscriberCount !== null ? realSubscriberCount : firebaseAgent.total_subscribers;
+      
       return {
         id: firebaseAgent.agent_id,
         name: firebaseAgent.name,
         creator: firebaseAgent.creator,
         strategy: `Agent ID: ${firebaseAgent.agent_id.slice(0, 10)}...`,
-        description: `${firebaseAgent.total_subscribers} subscribers`,
+        description: `${subscriberCount} subscribers`,
         riskLevel: firebaseAgent.is_active
           ? "Low"
           : ("High" as "Low" | "Medium" | "High"),
-        fee: parseInt(firebaseAgent.subscription_fee) / 1000000000,
-        subscribers: firebaseAgent.total_subscribers,
+        fee: parseInt(firebaseAgent.subscription_fee) / 10000000,
+        subscribers: subscriberCount,
         tags: [
           "Blockchain",
           "Automated",
           firebaseAgent.is_active ? "Active" : "Inactive",
         ],
         performanceMetrics: {
-          totalReturn: parseFloat((Math.random() * 50 + 10).toFixed(2)), // Mock for demo
-          winRate: parseFloat((Math.random() * 40 + 60).toFixed(1)),
-          sharpeRatio: parseFloat((Math.random() * 2 + 1).toFixed(2)),
-          maxDrawdown: parseFloat((Math.random() * 15 + 5).toFixed(1)),
+          totalReturn: generateStableRandom(firebaseAgent.agent_id + '_return', 10, 60, 2),
+          winRate: generateStableRandom(firebaseAgent.agent_id + '_winrate', 60, 100, 1),
+          sharpeRatio: generateStableRandom(firebaseAgent.agent_id + '_sharpe', 1, 3, 2),
+          maxDrawdown: generateStableRandom(firebaseAgent.agent_id + '_drawdown', 5, 20, 1),
         },
         createdAt:
           firebaseAgent.created_at instanceof Date
@@ -51,7 +81,113 @@ const AgentDetailPage: React.FC = () => {
       return mockAgents.find((a: Agent) => a.id === id);
     }
     return undefined;
-  }, [firebaseAgent, id]);
+  }, [firebaseAgent, id, realSubscriberCount]);
+
+  // Fetch real subscriber count from smart contract
+  // Check subscription status from Firebase (primary approach)
+  useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      if (!agent?.id || !isLoggedIn || !userAddress) {
+        console.log('🔍 Subscription check skipped:', {
+          hasAgentId: !!agent?.id,
+          isLoggedIn,
+          hasUserAddress: !!userAddress
+        });
+        return;
+      }
+      
+      console.log('🔍 Checking subscription status from Firebase...', {
+        agentId: agent.id,
+        userAddress: userAddress,
+      });
+      
+      // Primary approach: Check Firebase
+      try {
+        const subscription = await checkUserSubscription(agent.id, userAddress);
+        console.log('🔍 Firebase subscription check result:', subscription);
+        
+        if (subscription) {
+          setIsSubscribed(true);
+          setSubscriptionData(subscription);
+          console.log('✅ User is subscribed to this agent:', subscription);
+          
+          // Store in localStorage for offline access
+          const localSubscriptions = localStorage.getItem('userSubscriptions') || '{}';
+          const subscriptions = JSON.parse(localSubscriptions);
+          subscriptions[`${userAddress}_${agent.id}`] = true;
+          localStorage.setItem('userSubscriptions', JSON.stringify(subscriptions));
+          console.log('💾 Subscription status cached in localStorage');
+        } else {
+          setIsSubscribed(false);
+          setSubscriptionData(null);
+          console.log('❌ User is not subscribed to this agent');
+          
+          // Remove from localStorage if it exists
+          const localSubscriptions = localStorage.getItem('userSubscriptions');
+          if (localSubscriptions) {
+            try {
+              const subscriptions = JSON.parse(localSubscriptions);
+              delete subscriptions[`${userAddress}_${agent.id}`];
+              localStorage.setItem('userSubscriptions', JSON.stringify(subscriptions));
+              console.log('🗑️ Removed stale subscription from localStorage');
+            } catch (error) {
+              console.error('Error cleaning localStorage:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Firebase subscription check failed:', error);
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : String(error),
+          code: (error as any)?.code || 'unknown',
+          stack: error instanceof Error ? error.stack : undefined
+        });
+        
+        // Fallback to localStorage only if Firebase fails
+        console.log('🔄 Falling back to localStorage...');
+        const localSubscriptions = localStorage.getItem('userSubscriptions');
+        if (localSubscriptions) {
+          try {
+            const subscriptions = JSON.parse(localSubscriptions);
+            const key = `${userAddress}_${agent.id}`;
+            if (subscriptions[key]) {
+              setIsSubscribed(true);
+              console.log('✅ Subscription found in localStorage fallback');
+            } else {
+              setIsSubscribed(false);
+              console.log('❌ No subscription found in localStorage fallback');
+            }
+          } catch (parseError) {
+            console.error('Error parsing localStorage subscriptions:', parseError);
+            setIsSubscribed(false);
+          }
+        } else {
+          setIsSubscribed(false);
+          console.log('❌ No localStorage data available');
+        }
+      }
+    };
+
+    checkSubscriptionStatus();
+  }, [agent?.id, isLoggedIn, userAddress]);
+
+  // Fetch real subscriber count from smart contract
+  useEffect(() => {
+    if (!agent?.id || !isLoggedIn) return;
+    
+    const fetchRealSubscriberCount = async () => {
+      try {
+        const agentInfo = await getAgentInfo(agent.id);
+        setRealSubscriberCount(agentInfo.totalSubscribers);
+        console.log(`Real subscriber count for agent ${agent.id}:`, agentInfo.totalSubscribers);
+      } catch (error) {
+        console.log('Could not fetch real subscriber count, using fallback');
+        // Keep using the fallback from Firebase/mock data
+      }
+    };
+
+    fetchRealSubscriberCount();
+  }, [agent?.id, isLoggedIn]); // Removed getAgentInfo from dependencies
 
   if (loading) {
     return <div className="text-center py-12 text-white">Loading agent...</div>;
@@ -76,8 +212,70 @@ const AgentDetailPage: React.FC = () => {
     );
   }
 
-  const handleSubscribe = (): void => {
-    setIsSubscribed(!isSubscribed);
+  const handleSubscribe = async (): Promise<void> => {
+    if (!agent?.id || !isLoggedIn) return;
+    
+    try {
+      const result = await subscribeToAgent({
+        agentId: agent.id,
+        subscriptionDurationDays: 30
+      });
+      
+      if (result.success) {
+        setSubscriptionResult({
+          transactionDigest: result.transactionDigest,
+          agentName: agent.name,
+        });
+        setShowSuccessModal(true);
+        setIsSubscribed(true);
+        
+        // Refresh subscriber count after successful subscription
+        try {
+          const updatedAgentInfo = await getAgentInfo(agent.id);
+          setRealSubscriberCount(updatedAgentInfo.totalSubscribers);
+        } catch (error) {
+          console.log('Could not refresh subscriber count');
+        }
+        
+        // Update subscription status after successful blockchain transaction
+        if (userAddress) {
+          console.log('🔄 Updating subscription status after successful transaction...');
+          
+          // Store in localStorage immediately for instant UI update
+          const localSubscriptions = localStorage.getItem('userSubscriptions') || '{}';
+          const subscriptions = JSON.parse(localSubscriptions);
+          subscriptions[`${userAddress}_${agent.id}`] = true;
+          localStorage.setItem('userSubscriptions', JSON.stringify(subscriptions));
+          console.log('💾 Subscription stored in localStorage');
+          
+          // Try to verify from Firebase (this might fail initially if the collection doesn't exist)
+          try {
+            console.log('🔍 Attempting to verify subscription from Firebase...');
+            const subscription = await checkUserSubscription(agent.id, userAddress);
+            if (subscription) {
+              setSubscriptionData(subscription);
+              console.log('✅ Subscription verified from Firebase:', subscription);
+            } else {
+              console.log('⚠️ Subscription not yet reflected in Firebase (expected for new collection)');
+            }
+          } catch (error) {
+            console.error('❌ Could not verify subscription from Firebase:', error);
+            console.log('💡 This is normal if the user_subscriptions collection doesn\'t exist yet');
+            console.log('💡 To fix: Create the collection in Firestore with proper security rules');
+          }
+        }
+      } else {
+        alert(`Failed to subscribe: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Subscription error:', error);
+      alert(`Subscription failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleSuccessModalClose = (): void => {
+    setShowSuccessModal(false);
+    setSubscriptionResult({});
   };
 
   const getRiskColor = (riskLevel: string): string => {
@@ -147,22 +345,22 @@ const AgentDetailPage: React.FC = () => {
               </p>
             </div>
             <div className="lg:ml-8 mt-6 lg:mt-0">
-              <div className="text-center mb-4">
-                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                  {agent.subscribers} subscribers
-                </div>
-              </div>
               <button
                 onClick={handleSubscribe}
-                className={`w-full lg:w-auto min-w-[200px] px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${
+                disabled={isTransacting || !isLoggedIn || isSubscribed}
+                className={`w-full lg:w-auto min-w-[200px] px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${
                   isSubscribed
-                    ? "bg-green-600 text-white hover:bg-green-700"
+                    ? "bg-green-600 text-white"
                     : "bg-gradient-to-r from-blue-600 to-green-600 text-white hover:from-blue-700 hover:to-green-700"
                 }`}
               >
-                {isSubscribed
-                  ? "Subscribed ✓"
-                  : `Subscribe (${agent.fee.toFixed(2)}% fee)`}
+                {isTransacting
+                  ? "Subscribing..."
+                  : isSubscribed
+                    ? "Subscribed ✓"
+                    : isLoggedIn
+                      ? `Subscribe (${agent.fee.toFixed(2)}% fee)`
+                      : "Login to Subscribe"}
               </button>
             </div>
           </div>
@@ -251,7 +449,7 @@ const AgentDetailPage: React.FC = () => {
                     const data = [];
                     
                     for (let i = 0; i < points; i++) {
-                      const change = (Math.random() - 0.4) * 5; // Slight upward bias
+                      const change = (generateStableRandom(agent.id + '_pnl_' + i, -4.5, 1, 2)); // Slight upward bias
                       value = Math.max(80, Math.min(150, value + change));
                       data.push(value);
                     }
@@ -461,6 +659,16 @@ const AgentDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={handleSuccessModalClose}
+        title="🎉 Subscription Successful!"
+        message={`You have successfully subscribed to "${subscriptionResult.agentName}". You can now access this agent's trading signals and deposit funds for automated trading.`}
+        transactionHash={subscriptionResult.transactionDigest}
+        agentName={subscriptionResult.agentName}
+      />
     </div>
   );
 };

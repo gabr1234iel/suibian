@@ -28,8 +28,9 @@ export interface TradingAgent {
   tx_digest: string;
 }
 
-// Collection reference
+// Collection references
 const TRADING_AGENTS_COLLECTION = "trading_agents";
+const USER_SUBSCRIPTIONS_COLLECTION = "user_subscriptions";
 
 /**
  * Get all trading agents with optional filtering and pagination
@@ -254,5 +255,119 @@ export const getRecentTradingAgents = async (
   } catch (error) {
     console.error("Error fetching recent trading agents:", error);
     throw new Error("Failed to fetch recent trading agents");
+  }
+};
+
+// Types for User Subscription
+export interface UserSubscription {
+  subscription_id: string;
+  agent_id: string;
+  subscriber_address: string;
+  subscription_end: Date | Timestamp;
+  is_active: boolean;
+  subscribed_at: Date | Timestamp;
+  tx_digest: string;
+}
+
+/**
+ * Check if a user is subscribed to a specific agent
+ */
+export const checkUserSubscription = async (
+  agentId: string, 
+  userAddress: string
+): Promise<UserSubscription | null> => {
+  console.log('🔍 checkUserSubscription called with:', {
+    agentId,
+    userAddress,
+    collection: USER_SUBSCRIPTIONS_COLLECTION
+  });
+
+  try {
+    console.log('🔍 Building Firestore query...');
+    const q = query(
+      collection(db, USER_SUBSCRIPTIONS_COLLECTION),
+      where("agent_id", "==", agentId),
+      where("subscriber", "==", userAddress),
+      where("is_active", "==", true)
+    );
+
+    console.log('🔍 Executing Firestore query...');
+    const querySnapshot = await getDocs(q);
+    
+    console.log('🔍 Query result:', {
+      isEmpty: querySnapshot.empty,
+      size: querySnapshot.size,
+      docs: querySnapshot.docs.length
+    });
+    
+    if (querySnapshot.empty) {
+      console.log('❌ No subscription documents found');
+      return null;
+    }
+
+    // Return the first active subscription
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+    
+    console.log('✅ Subscription document found:', {
+      docId: doc.id,
+      data: data
+    });
+    
+    const subscription = {
+      subscription_id: doc.id,
+      agent_id: data.agent_id,
+      subscriber_address: data.subscriber_address,
+      subscription_end: data.subscription_end,
+      is_active: data.is_active,
+      subscribed_at: data.subscribed_at,
+      tx_digest: data.tx_digest,
+    } as UserSubscription;
+
+    console.log('✅ Returning subscription object:', subscription);
+    return subscription;
+  } catch (error) {
+    console.error("❌ Error checking user subscription:", error);
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      code: (error as any)?.code || 'unknown',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    // Re-throw the error so the calling code can handle it properly
+    throw error;
+  }
+};
+
+/**
+ * Get all subscriptions for a user
+ */
+export const getUserSubscriptions = async (
+  userAddress: string
+): Promise<UserSubscription[]> => {
+  try {
+    const q = query(
+      collection(db, USER_SUBSCRIPTIONS_COLLECTION),
+      where("subscriber_address", "==", userAddress),
+      orderBy("subscribed_at", "desc")
+    );
+
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        subscription_id: doc.id,
+        agent_id: data.agent_id,
+        subscriber_address: data.subscriber_address,
+        subscription_end: data.subscription_end,
+        is_active: data.is_active,
+        subscribed_at: data.subscribed_at,
+        tx_digest: data.tx_digest,
+      } as UserSubscription;
+    });
+  } catch (error) {
+    console.error("Error fetching user subscriptions:", error);
+    throw new Error("Failed to fetch user subscriptions");
   }
 };
