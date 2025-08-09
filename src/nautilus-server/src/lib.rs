@@ -1,12 +1,7 @@
 // Copyright (c), Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
-use axum::response::Response;
-use axum::Json;
 use fastcrypto::ed25519::Ed25519KeyPair;
-use serde_json::json;
 use std::fmt;
 
 pub mod examples {
@@ -32,8 +27,7 @@ pub mod app {
 
     #[cfg(feature = "trading")]
     pub use crate::examples::trading::{
-        init_wallet, create_user_balance, process_data, get_wallet_status, withdraw_funds,
-        InitWalletRequest, InitWalletResponse, CreateBalanceRequest, CreateBalanceResponse,
+        InitWalletRequest, InitWalletResponse, CreateBalanceResponse,
         TradeRequest, TradeResponse, WalletStatusRequest, WalletStatusResponse,
         WithdrawRequest, WithdrawResponse,
     };
@@ -55,18 +49,6 @@ pub struct AppState {
     pub api_key: String,
 }
 
-/// Implement IntoResponse for EnclaveError
-impl IntoResponse for EnclaveError {
-    fn into_response(self) -> Response {
-        let (status, error_message) = match self {
-            EnclaveError::GenericError(e) => (StatusCode::BAD_REQUEST, e),
-        };
-        let body = Json(json!({
-            "error": error_message,
-        }));
-        (status, body).into_response()
-    }
-}
 
 /// Enclave errors enum
 #[derive(Debug)]

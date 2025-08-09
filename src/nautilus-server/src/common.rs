@@ -3,7 +3,6 @@
 
 use crate::AppState;
 use crate::EnclaveError;
-use axum::{extract::State, Json};
 use fastcrypto::traits::Signer;
 use fastcrypto::{encoding::Encoding, traits::ToFromBytes};
 use fastcrypto::{encoding::Hex, traits::KeyPair as FcKeyPair};

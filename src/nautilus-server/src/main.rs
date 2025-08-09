@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use anyhow::Result;
-use axum::{routing::get, routing::post, Router};
 use fastcrypto::{ed25519::Ed25519KeyPair, traits::KeyPair};
 use nautilus_server::AppState;
 use nautilus_server::common::{get_attestation, health_check};
 use std::sync::Arc;
-use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
+use warp::Filter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -50,65 +49,77 @@ async fn main() -> Result<()> {
         nautilus_server::app::spawn_host_init_server(state.clone()).await?;
     }
 
-    // Common endpoints always available
-    println!("\n📡 Common endpoints:");
-    println!("   GET  /                    - Health check");
-    println!("   GET  /get_attestation     - Get enclave attestation");
-    println!("   GET  /health_check        - Check endpoint connectivity");
+    let cors = warp::cors()
+        .allow_any_origin()
+        .allow_methods(vec!["GET", "POST"])
+        .allow_headers(vec!["content-type"]);
 
-    // Define CORS policy
-    let cors = CorsLayer::new()
-        .allow_methods(Any)
-        .allow_headers(Any)
-        .allow_origin(Any);
+    // Routes
+    let ping = warp::path("ping")
+        .and(warp::get())
+        .map(|| warp::reply::html(ping_response()));
 
-    // Build router with conditional routes based on features
-    let mut app = Router::new()
-        .route("/", get(ping))
-        .route("/get_attestation", get(get_attestation))
-        .route("/health_check", get(health_check));
+    let health = warp::path("health")
+        .and(warp::get())
+        .map(|| warp::reply::json(&health_check()));
 
-    // Add trading-specific routes
+    let attestation = warp::path("attestation")
+        .and(warp::get())
+        .and(with_state(state.clone()))
+        .and_then(attestation_handler);
+
+
     #[cfg(feature = "trading")]
-    {
-        use nautilus_server::app::{
-            init_wallet, create_user_balance, process_data,
-            get_wallet_status, withdraw_funds
-        };
-        
-        app = app
-            .route("/init_wallet", post(init_wallet))
-            .route("/create_user_balance", post(create_user_balance))
-            .route("/execute_trade", post(process_data))
-            .route("/wallet_status", post(get_wallet_status))
-            .route("/withdraw", post(withdraw_funds));
-    }
+    let trading_routes = {
+        let init_wallet = warp::path("init_wallet")
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_state(state.clone()))
+            .and_then(nautilus_server::examples::trading::init_wallet_wrapper);
 
-    // Add weather route
-    #[cfg(feature = "weather")]
-    {
-        use nautilus_server::app::process_data;
-        app = app.route("/process_data", post(process_data));
-    }
+        let create_balance = warp::path("create_user_balance")
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_state(state.clone()))
+            .and_then(nautilus_server::examples::trading::create_user_balance_wrapper);
 
-    // Add twitter route
-    #[cfg(feature = "twitter")]
-    {
-        use nautilus_server::app::process_data;
-        app = app.route("/process_data", post(process_data));
-    }
+        let execute_trade = warp::path("execute_trade")
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_state(state.clone()))
+            .and_then(nautilus_server::examples::trading::execute_trade_wrapper);
 
-    app = app.with_state(state).layer(cors);
+        let wallet_status = warp::path("wallet_status")
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_state(state.clone()))
+            .and_then(nautilus_server::examples::trading::wallet_status_wrapper);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    info!("Server listening on {}", listener.local_addr().unwrap());
-    
-    axum::serve(listener, app.into_make_service())
-        .await
-        .map_err(|e| anyhow::anyhow!("Server error: {}", e))
+        let withdraw = warp::path("withdraw")
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_state(state.clone()))
+            .and_then(nautilus_server::examples::trading::withdraw_wrapper);
+
+        init_wallet.or(create_balance).or(execute_trade).or(wallet_status).or(withdraw)
+    };
+
+    let routes = ping.or(health).or(attestation);
+
+    #[cfg(feature = "trading")]
+    let routes = routes.or(trading_routes);
+
+    let routes = routes.with(cors);
+
+    info!("Server listening on 0.0.0.0:3000");
+    warp::serve(routes)
+        .run(([0, 0, 0, 0], 3000))
+        .await;
+
+    Ok(())
 }
 
-async fn ping() -> &'static str {
+fn ping_response() -> &'static str {
     #[cfg(feature = "trading")]
     return "Trading Agent TEE v1.0 - Ready!";
     
@@ -119,5 +130,21 @@ async fn ping() -> &'static str {
     return "Twitter Service - Pong!";
     
     #[cfg(not(any(feature = "trading", feature = "weather", feature = "twitter")))]
-    return "Nautilus Server - Pong!";
+    return "Pong!";
 }
+
+fn with_state(state: Arc<AppState>) -> impl Filter<Extract = (Arc<AppState>,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || state.clone())
+}
+
+async fn attestation_handler(state: Arc<AppState>) -> Result<impl warp::Reply, warp::Rejection> {
+    match get_attestation(&state).await {
+        Ok(att) => Ok(warp::reply::json(&att)),
+        Err(_) => Err(warp::reject::custom(ServerError)),
+    }
+}
+
+#[derive(Debug)]
+struct ServerError;
+
+impl warp::reject::Reject for ServerError {}
