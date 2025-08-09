@@ -11,6 +11,97 @@ import {
 const GOOGLE_CLIENT_ID =
   "1027686321621-8j8ctl1uld0bv85ndac92bd8smr3cim0.apps.googleusercontent.com";
 
+// Clean Progress Loading Hook
+const useLoginProgress = (isLoadingUser: boolean) => {
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState(0);
+
+  const steps = [
+    { text: 'Initializing secure session', duration: 2000 },
+    { text: 'Connecting to Sui network', duration: 1500 },
+    { text: 'Generating your wallet', duration: 2000 },
+    { text: 'Encrypting credentials', duration: 1000 },
+    { text: 'Finalizing connection', duration: 800 }
+  ];
+
+  useEffect(() => {
+    if (!isLoadingUser) {
+      setProgress(0);
+      setCurrentStep(0);
+      return;
+    }
+
+    let totalProgress = 0;
+    let stepIndex = 0;
+    
+    const runStep = () => {
+      if (stepIndex >= steps.length || !isLoadingUser) {
+        return;
+      }
+      
+      setCurrentStep(stepIndex);
+      const stepDuration = steps[stepIndex].duration;
+      const stepProgress = 100 / steps.length;
+      
+      const startTime = Date.now();
+      const animate = () => {
+        if (!isLoadingUser) return; // Stop if loading finishes
+        
+        const elapsed = Date.now() - startTime;
+        const stepCompletion = Math.min(elapsed / stepDuration, 1);
+        setProgress(totalProgress + (stepProgress * stepCompletion));
+        
+        if (stepCompletion < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          totalProgress += stepProgress;
+          stepIndex++;
+          setTimeout(runStep, 200);
+        }
+      };
+      animate();
+    };
+    
+    runStep();
+  }, [isLoadingUser]);
+
+  return {
+    progress,
+    currentStep: steps[currentStep],
+    isComplete: progress >= 100
+  };
+};
+
+// Clean Progress Loader Component
+const CleanProgressLoader: React.FC<{ isLoadingUser: boolean }> = ({ isLoadingUser }) => {
+  const { progress, currentStep } = useLoginProgress(isLoadingUser);
+
+  if (!isLoadingUser) return null;
+
+  return (
+    <div className="mb-6">
+      <div className="text-center space-y-4">
+        <span className="text-text-secondary text-base">
+          {currentStep?.text}
+        </span>
+        <div className="w-full bg-gray-700/50 rounded-full h-1">
+          <div 
+            className="bg-gradient-to-r from-blue-500 to-green-500 h-1 rounded-full transition-all duration-300 ease-out relative overflow-hidden"
+            style={{ width: `${progress}%` }}
+          >
+            {/* Optional: Add a subtle shimmer effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 animate-pulse" />
+          </div>
+        </div>
+        <div className="text-xs text-gray-500">
+          {Math.round(progress)}% complete
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Main Login Page Component
 const LoginPage: React.FC = () => {
   const {
     isLoggedIn,
@@ -129,19 +220,8 @@ const LoginPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Google Login */}
-              {isLoadingUser && (
-                <div className="mb-6">
-                  <div className="flex flex-col items-center justify-center space-y-3">
-                    <div className="relative">
-                      <div className="animate-spin rounded-full h-8 w-8 border-3 border-blue-500 border-t-transparent"></div>
-                    </div>
-                    <span className="text-text-secondary animate-pulse">
-                      Creating your secure connection...
-                    </span>
-                  </div>
-                </div>
-              )}
+              {/* Clean Progress Loading */}
+              <CleanProgressLoader isLoadingUser={isLoadingUser} />
 
               {!nonce && !isLoadingUser && !isInitializingLogin && (
                 <div className="mb-6">
