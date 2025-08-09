@@ -1,0 +1,82 @@
+🌊 DEX Testing Demo Starting...
+
+📊 Initial State:
+
+💰 Wallet Balances:
+SUI: 45.9055 SUI
+MOCK_USDC: 1000.00 USDC
+
+📊 Pool Info:
+SUI Reserve: 0.0000 SUI
+USDC Reserve: 0.00 USDC
+Total LP Supply: 0
+Price: $0.0000 USDC per SUI
+
+=== ADDING LIQUIDITY ===
+
+💧 Adding liquidity: 10 SUI + 30 USDC...
+✅ Liquidity added successfully
+Transaction: 7qaQZNtpgrYxMPiQjtZfPDecgbQP3CiteQsBULJQoDLV
+🎫 LP Token created: 0xe67e7e09eb188a3dc423e1741a5595b14005e4054bd2934afd21024038b613c8
+
+📊 Pool Info:
+SUI Reserve: 10.0000 SUI
+USDC Reserve: 30.00 USDC
+Total LP Supply: 300000000000
+Price: $0.0000 USDC per SUI
+
+💰 Wallet Balances:
+SUI: 35.9029 SUI
+MOCK_USDC: 970.00 USDC
+
+=== TESTING SWAPS ===
+
+📊 Pool Info:
+SUI Reserve: 10.0000 SUI
+USDC Reserve: 30.00 USDC
+Total LP Supply: 300000000000
+Price: $0.0000 USDC per SUI
+
+🔮 Swap Preview: 1 SUI → 2.72 USDC
+
+🔄 Swapping 1 SUI for USDC...
+✅ Swap completed
+Transaction: 4pJhYC5hFi531r7XvByMBpBrzP6ZFtmDsQGXp4C11WVz
+📈 Received: 2.72 USDC
+💸 Fee: 0.0030 SUI
+
+📊 Pool Info:
+SUI Reserve: 11.0000 SUI
+USDC Reserve: 27.28 USDC
+Total LP Supply: 300000000000
+Price: $0.0000 USDC per SUI
+
+💰 Wallet Balances:
+SUI: 34.9005 SUI
+MOCK_USDC: 972.72 USDC
+
+📊 Pool Info:
+SUI Reserve: 11.0000 SUI
+USDC Reserve: 27.28 USDC
+Total LP Supply: 300000000000
+Price: $0.0000 USDC per SUI
+
+🔮 Swap Preview: 10 USDC → 2.9441 SUI
+
+🔄 Swapping 10 USDC for SUI...
+✅ Swap completed
+Transaction: G6YCJrAQe1zJo4onT2Kdeu7mHzVxVVqJKM1g4pm2FurG
+📈 Received: 2.9441 SUI
+💸 Fee: 0.03 USDC
+
+📊 Pool Info:
+SUI Reserve: 8.0559 SUI
+USDC Reserve: 37.28 USDC
+Total LP Supply: 300000000000
+Price: $0.0000 USDC per SUI
+
+💰 Wallet Balances:
+SUI: 37.8426 SUI
+MOCK_USDC: 962.72 USDC
+
+🎉 Testing completed successfully!
