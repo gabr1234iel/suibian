@@ -9,6 +9,7 @@ import {
   PlayCircle,
   Sparkles,
   Shield,
+  DollarSign,
 } from "lucide-react";
 
 const HowItWorksSection: React.FC = () => {
@@ -52,6 +53,49 @@ const HowItWorksSection: React.FC = () => {
       gradient: "from-white/5 to-gray-500/5",
       borderColor: "border-white/20",
       iconColor: "text-white",
+    },
+  ];
+
+  const creatorSteps = [
+    {
+      id: 1,
+      title: "Design Your Strategy",
+      description:
+        "Use our intuitive visual editor or upload your own code to build a unique AI trading agent from the ground up.",
+      icon: <Sparkles className="w-8 h-8" />,
+      gradient: "from-blue-500/10 to-green-500/10",
+      borderColor: "border-blue-400/20",
+      iconColor: "text-blue-300",
+    },
+    {
+      id: 2,
+      title: "Backtest & Secure",
+      description:
+        "Validate your agent's performance against historical data and deploy it into our secure, audited on-chain environment.",
+      icon: <Shield className="w-8 h-8" />,
+      gradient: "from-blue-500/10 to-green-500/10",
+      borderColor: "border-blue-400/20",
+      iconColor: "text-green-300",
+    },
+    {
+      id: 3,
+      title: "List & Set Your Price",
+      description:
+        "Publish your agent to the marketplace. Set your own flat-rate subscription fee and write a compelling description.",
+      icon: <DollarSign className="w-8 h-8" />,
+      gradient: "from-blue-500/10 to-green-500/10",
+      borderColor: "border-blue-400/20",
+      iconColor: "text-blue-300",
+    },
+    {
+      id: 4,
+      title: "Earn & Grow",
+      description:
+        "Generate passive income from every subscriber. Build your reputation and track your agent's adoption in real-time.",
+      icon: <TrendingUp className="w-8 h-8" />,
+      gradient: "from-blue-500/10 to-green-500/10",
+      borderColor: "border-blue-400/20",
+      iconColor: "text-green-300",
     },
   ];
 
@@ -105,8 +149,17 @@ const HowItWorksSection: React.FC = () => {
             </span>
           </motion.div>
 
-          <motion.h2
+          {/* <motion.h2
             className="text-4xl md:text-5xl font-bold mb-6 text-white"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1 }}
+            viewport={{ once: true }}
+          >
+            From Strategy to Revenue, Simplified.
+          </motion.h2> */}
+          <motion.h2
+            className="text-3xl md:text-5xl font-bold mb-6 text-white"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
@@ -115,8 +168,18 @@ const HowItWorksSection: React.FC = () => {
             Start Trading in Minutes
           </motion.h2>
 
-          <motion.p
+          {/* <motion.p
             className="text-l text-gray-400 max-w-3xl mx-auto leading-relaxed"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            viewport={{ once: true }}
+          >
+            Our platform provides everything you need to build, backtest,
+            deploy, and monetize your trading strategies on-chain.
+          </motion.p> */}
+          <motion.p
+            className="text-m text-gray-400 max-w-3xl mx-auto leading-relaxed"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
@@ -253,7 +316,7 @@ const HowItWorksSection: React.FC = () => {
                       {step.title}
                     </h3>
 
-                    <p className="text-gray-400 leading-relaxed">
+                    <p className="text-gray-400 leading-relaxed text-sm">
                       {step.description}
                     </p>
                   </div>

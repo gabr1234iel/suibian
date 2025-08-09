@@ -399,7 +399,7 @@ const MarketplacePreviewSection: React.FC = () => {
           </motion.h2>
 
           <motion.p
-            className="text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed"
+            className="text-m text-gray-400 max-w-3xl mx-auto leading-relaxed"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}

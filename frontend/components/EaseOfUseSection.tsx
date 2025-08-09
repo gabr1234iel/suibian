@@ -11,10 +11,68 @@ import {
   User,
   CreditCard,
   Globe,
+  Rocket,
+  UploadCloud,
+  Code,
+  DollarSign,
+  BarChart,
 } from "lucide-react";
 
 const EaseOfUseSection: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
+
+  // New benefits array focused on the creator
+  const creatorBenefits = [
+    {
+      icon: <DollarSign className="w-8 h-8" />,
+      title: "Direct Monetization",
+      description:
+        "Turn your trading algorithms into a recurring revenue stream. Set your price and earn from every subscriber.",
+      highlight: "You keep the majority of fees",
+    },
+    {
+      icon: <Code className="w-8 h-8" />,
+      title: "Powerful Tooling",
+      description:
+        "Build with our intuitive visual editor or upload your own code. We provide the backtesting and deployment infrastructure.",
+      highlight: "Focus on strategy, not infra",
+    },
+    {
+      icon: <Users className="w-8 h-8" />,
+      title: "Instant Audience",
+      description:
+        "Tap into a growing marketplace of traders actively looking for automated strategies. No marketing required.",
+      highlight: "Reach thousands of users",
+    },
+  ];
+
+  // New steps array focused on the creator
+  const creatorSteps = [
+    {
+      step: "1",
+      title: "Sign Up & Connect",
+      description:
+        "Join with your Google account in one click. We instantly set up your secure creator profile.",
+      icon: <Sparkles className="w-6 h-6" />,
+      imageAlt: "Creator Profile Setup Interface",
+    },
+    {
+      step: "2",
+      title: "Build Your Agent",
+      description:
+        "Use our no-code visual editor or upload your existing trading script to create your agent.",
+      icon: <UploadCloud className="w-6 h-6" />,
+      imageAlt: "Visual Agent Builder Interface",
+    },
+    {
+      step: "3",
+      title: "Launch & Earn",
+      description:
+        "Publish to the marketplace, set your subscription fee, and start generating passive income.",
+      icon: <Rocket className="w-6 h-6" />,
+      imageAlt: "Marketplace Listing Dashboard",
+    },
+  ];
 
   const benefits = [
     {
@@ -119,6 +177,10 @@ const EaseOfUseSection: React.FC = () => {
             <span className="text-sm font-medium text-gray-400">
               Simplified Experience
             </span>
+            {/* <BarChart className="w-5 h-5 text-green-400" />
+            <span className="text-sm font-medium text-gray-400">
+              Monetize Your Edge
+            </span> */}
           </motion.div>
 
           <motion.h2
@@ -132,6 +194,10 @@ const EaseOfUseSection: React.FC = () => {
             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-green-400">
               No Problem.
             </span>
+            {/* <span className="block">Have a Winning Strategy?</span>
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-green-400">
+              Turn It Into a Business.
+            </span> */}
           </motion.h2>
 
           <motion.p
@@ -144,6 +210,9 @@ const EaseOfUseSection: React.FC = () => {
             We've eliminated every barrier between you and blockchain trading.
             No wallets, no seed phrases, no crypto jargon. Just simple, powerful
             AI trading accessible to everyone.
+            {/* SuiBian gives you the tools, the platform, and the audience. You
+            provide the trading genius. Let's build the future of automated
+            trading together. */}
           </motion.p>
         </motion.div>
 
@@ -176,7 +245,7 @@ const EaseOfUseSection: React.FC = () => {
                     {benefit.title}
                   </h3>
 
-                  <p className="text-gray-400 leading-relaxed mb-4">
+                  <p className="text-gray-400 leading-relaxed mb-4 text-sm">
                     {benefit.description}
                   </p>
 
@@ -258,7 +327,7 @@ const EaseOfUseSection: React.FC = () => {
                           {step.icon}
                         </div>
                         <h4
-                          className={`text-xl font-bold transition-colors duration-300 ${
+                          className={`text-l font-bold transition-colors duration-300 ${
                             activeStep === index
                               ? "text-white"
                               : "text-gray-300"
@@ -270,7 +339,7 @@ const EaseOfUseSection: React.FC = () => {
 
                       {/* Description */}
                       <p
-                        className={`transition-colors duration-300 ${
+                        className={`text-sm transition-colors duration-300 ${
                           activeStep === index
                             ? "text-gray-300"
                             : "text-gray-400"
@@ -329,21 +398,6 @@ const EaseOfUseSection: React.FC = () => {
                   className="w-full h-full object-cover"
                 /> */}
               </motion.div>
-
-              {/* Step indicator dots */}
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-                {steps.map((_, index) => (
-                  <button
-                    key={index}
-                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                      activeStep === index
-                        ? "bg-blue-400 scale-125"
-                        : "bg-white/30 hover:bg-white/50"
-                    }`}
-                    onClick={() => setActiveStep(index)}
-                  />
-                ))}
-              </div>
             </motion.div>
 
             {/* Floating elements for visual interest */}

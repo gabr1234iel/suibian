@@ -18,28 +18,28 @@ import {
 const DualFeatureSection: React.FC = () => {
   const creatorFeatures = [
     {
-      icon: <Code className="w-6 h-6" />,
-      title: "No-Code Builder",
+      icon: <DollarSign className="w-6 h-6" />,
+      title: "Monetize Your Strategy",
       description:
-        "Create sophisticated trading strategies without programming knowledge using our intuitive drag-and-drop interface.",
+        "Earn passive income by listing your strategy for the community.",
+    },
+    // {
+    //   icon: <Code className="w-6 h-6" />,
+    //   title: "No-Code Builder",
+    //   description:
+    //     "Create sophisticated trading strategies without programming knowledge using our intuitive drag-and-drop interface.",
+    // },
+    {
+      icon: <Shield className="w-6 h-6" />,
+      title: "Secure Infrastructure",
+      description:
+        "Your strategies run on a secure, non-custodial platform with instant withdrawals.",
     },
     {
       icon: <BarChart3 className="w-6 h-6" />,
       title: "Advanced Analytics",
       description:
-        "Track performance metrics, analyze market conditions, and optimize your strategies with detailed insights.",
-    },
-    {
-      icon: <DollarSign className="w-6 h-6" />,
-      title: "Monetize Your Skills",
-      description:
-        "Earn passive income by sharing your trading expertise with the community through subscription-based agents.",
-    },
-    {
-      icon: <Shield className="w-6 h-6" />,
-      title: "Secure Infrastructure",
-      description:
-        "Built on Sui blockchain for maximum security, transparency, and decentralized operation.",
+        "Track performance metrics of your strategies with real-time analytics and insights.",
     },
   ];
 
@@ -48,19 +48,13 @@ const DualFeatureSection: React.FC = () => {
       icon: <Bot className="w-6 h-6" />,
       title: "AI-Powered Trading",
       description:
-        "Access sophisticated trading algorithms that work 24/7 to maximize your investment returns.",
+        "Allow sophisticated trading algorithms that work 24/7 to maximize your investment returns.",
     },
     {
       icon: <TrendingUp className="w-6 h-6" />,
       title: "Proven Performance",
       description:
         "Choose from agents with verified track records and transparent performance history.",
-    },
-    {
-      icon: <Users className="w-6 h-6" />,
-      title: "Community Insights",
-      description:
-        "Learn from experienced traders and benefit from collective intelligence of the marketplace.",
     },
     {
       icon: <Lock className="w-6 h-6" />,
@@ -160,7 +154,7 @@ const DualFeatureSection: React.FC = () => {
                     <h3 className="text-2xl font-bold text-white mb-2">
                       For Creators
                     </h3>
-                    <p className="text-gray-300">
+                    <p className="text-gray-300 text-sm">
                       Build and monetize your trading expertise
                     </p>
                   </div>
@@ -238,7 +232,7 @@ const DualFeatureSection: React.FC = () => {
                     <h3 className="text-2xl font-bold text-white mb-2">
                       For Traders
                     </h3>
-                    <p className="text-gray-300">
+                    <p className="text-gray-300 text-sm">
                       Access premium trading strategies
                     </p>
                   </div>
