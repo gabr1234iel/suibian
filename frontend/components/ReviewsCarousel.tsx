@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useWindow } from "../hooks/useClientSide";
 
 const reviews = [
   {
@@ -44,9 +45,26 @@ const accentBorders = [
 
 const ReviewsCarousel: React.FC = () => {
   const [scrollIndex, setScrollIndex] = useState(0);
+  const [windowWidth, setWindowWidth] = useState(0);
+  const windowObj = useWindow();
   const cardWidth = 370; // px
-  const visibleCards =
-    typeof window !== "undefined" && window.innerWidth >= 768 ? 2 : 1;
+  
+  // Handle window resize and initial window width
+  useEffect(() => {
+    if (windowObj) {
+      const handleResize = () => setWindowWidth(windowObj.innerWidth);
+      
+      // Set initial width
+      setWindowWidth(windowObj.innerWidth);
+      
+      // Add resize listener
+      windowObj.addEventListener('resize', handleResize);
+      
+      return () => windowObj.removeEventListener('resize', handleResize);
+    }
+  }, [windowObj]);
+  
+  const visibleCards = windowWidth >= 768 ? 2 : 1;
   const maxIndex = Math.max(0, reviews.length - visibleCards);
 
   // Auto-advance every 5 seconds

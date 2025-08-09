@@ -44,6 +44,7 @@ export interface AppContextType {
   balance: number | null;
   isBalanceLoading: boolean;
   isLoadingUser: boolean;
+  mounted: boolean; // Track hydration state
   nonce: string | null;
   // zkLogin parameters needed for blockchain transactions
   jwt: string | null;
