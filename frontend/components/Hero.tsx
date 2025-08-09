@@ -386,16 +386,16 @@ const HeroSection = () => {
           <SuiBianLogo />
         </div>
 
-        <h1 className="p-4 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white drop-shadow-lg">
-          On-Chain AI Trading.
+        <h1 className="p-4 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white drop-shadow-lg">
+          On-Chain AI Trading Marketplace.
           <br />
           <span className="block bg-gradient-to-r from-blue-300 to-green-300 bg-clip-text text-transparent">
-            No Crypto Experience.
+            Your One Stop Solution.
           </span>
         </h1>
 
         <p className="max-w-2xl text-lg text-gray-300">
-          Discover, subscribe to, or build AI agents to trade on the SUI
+          Build, discover,or subscribe to AI agents to trade on the SUI
           blockchain on your behalf without needing crypto knowledge.
         </p>
 

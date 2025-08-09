@@ -410,11 +410,11 @@ export default function LandingPage() {
     <main className="flex min-h-screen flex-col">
       <Header />
       <HeroSection />
-      <section id="why-us">
-        <EaseOfUseSection />
-      </section>
       <section id="how-it-works">
         <HowItWorksSection />
+      </section>
+      <section id="why-us">
+        <EaseOfUseSection />
       </section>
       <section id="marketplace">
         <MarketplacePreviewSection />
