@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useAppContext } from "../context/AppContext";
 import { motion } from "framer-motion";
@@ -11,18 +11,35 @@ import {
   Sparkles,
   BarChart3,
   Zap,
-  Link, // Added Link icon for subscriptions
+  Link,
+  Wallet, // Added for deposit button
+  Plus, // Added for deposit button
 } from "lucide-react";
 // Import both hooks
 import {
   useUserTradingAgents,
-  useUserSubscribedAgents, // Import the new hook
-} from "../hooks/useTradingAgents"; // Assuming hooks are in the same file for simplicity
+  useUserSubscribedAgents,
+} from "../hooks/useTradingAgents";
+import { useSuiTransactions } from "../hooks/useSuiTransactions"; // Import the transaction hook
 import Header from "@/components/Header";
 
 const DashboardPage: React.FC = () => {
   const { isLoggedIn, userAddress } = useAppContext();
   const router = useRouter();
+  
+  // Add transaction hook
+  const { depositTradingFunds, isTransacting } = useSuiTransactions();
+  
+  // State for deposit modal
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<any>(null);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [depositError, setDepositError] = useState("");
+  const [depositSuccess, setDepositSuccess] = useState("");
+
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successTransactionDigest, setSuccessTransactionDigest] = useState("");
 
   // Get user's CREATED trading agents from Firebase
   const {
@@ -44,6 +61,98 @@ const DashboardPage: React.FC = () => {
       router.push("/");
     }
   }, [isLoggedIn, router]);
+
+  // Handle deposit modal
+  const openDepositModal = (agent: any) => {
+    setSelectedAgent(agent);
+    setShowDepositModal(true);
+    setDepositAmount("");
+    setDepositError("");
+    setDepositSuccess("");
+  };
+
+  const closeDepositModal = () => {
+    setShowDepositModal(false);
+    setSelectedAgent(null);
+    setDepositAmount("");
+    setDepositError("");
+    setDepositSuccess("");
+  };
+
+  // Handle deposit submission
+  const handleDeposit = async () => {
+    if (!selectedAgent || !depositAmount) return;
+
+    const amount = parseFloat(depositAmount);
+    if (amount < 0.2) {
+      setDepositError("Minimum deposit amount is 0.2 SUI");
+      return;
+    }
+
+    console.log("Selected agent for deposit:", selectedAgent);
+
+    // Set default wallet address if null
+    const walletAddress = selectedAgent.wallet_address || '0x070a7f8fc840cb55d4b123a953af0298af91440f4ddba155d96c7bda8b4968dc';
+    
+    // Check if TEE wallet address exists (now using the fallback)
+    if (!walletAddress) {
+      setDepositError("Agent TEE wallet address not found. Please contact the agent creator.");
+      return;
+    }
+
+    setDepositLoading(true);
+    setDepositError("");
+    setDepositSuccess("");
+
+    try {
+      console.log('🚀 Starting deposit process for agent:', selectedAgent.agent_id, 'amount:', amount);
+      console.log('📍 TEE wallet address:', walletAddress);
+
+      // Create agent object with fallback wallet address
+      const agentWithWallet = {
+        ...selectedAgent,
+        wallet_address: walletAddress
+      };
+      
+      // Pass the entire agent object so the function can access tee_wallet_address
+      const result = await depositTradingFunds(selectedAgent.agent_id, amount, agentWithWallet);
+      
+      if (result.success) {
+        setDepositSuccess(
+          `Successfully deposited ${amount} SUI to agent's TEE wallet! Transaction: ${result.transactionDigest?.slice(0, 8)}...`
+        );
+        console.log('✅ Deposit successful:', result);
+        localStorage.setItem("amountDeposited", (parseFloat(localStorage.getItem("amountDeposited") || "0") + amount).toString());
+
+        // Set transaction digest for success popup
+        setSuccessTransactionDigest(result.transactionDigest || "");
+        
+        // Close deposit modal and show success popup
+        closeDepositModal();
+        setShowSuccessPopup(true);
+        
+        // Auto close success popup after 10 seconds
+        setTimeout(() => {
+          setShowSuccessPopup(false);
+        }, 10000);
+      } else {
+        setDepositError(result.error || "Deposit failed");
+        console.error('❌ Deposit failed:', result.error);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      setDepositError(errorMessage);
+      console.error('❌ Deposit error:', error);
+    } finally {
+      setDepositLoading(false);
+    }
+  };
+
+  // Close success popup
+  const closeSuccessPopup = () => {
+    setShowSuccessPopup(false);
+    setSuccessTransactionDigest("");
+  };
 
   if (!isLoggedIn) {
     return null; // Will redirect in useEffect
@@ -361,19 +470,17 @@ const DashboardPage: React.FC = () => {
                     <motion.div
                       key={agent.agent_id}
                       variants={itemVariants}
-                      whileHover={{
-                        scale: 1.01,
-                        transition: { duration: 0.2 },
-                      }}
-                      className="group cursor-pointer"
-                      onClick={() => router.push(`/agents/${agent.agent_id}`)} // Link to public marketplace page
+                      className="group"
                     >
                       <div className="relative bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-white/20 transition-all duration-300 overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-transparent to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between">
                           <div className="flex-1 mb-6 lg:mb-0">
                             <div className="flex items-center space-x-4 mb-3">
-                              <h3 className="text-xl font-bold text-white group-hover:text-purple-200 transition-colors duration-300">
+                              <h3 
+                                className="text-xl font-bold text-white group-hover:text-purple-200 transition-colors duration-300 cursor-pointer"
+                                onClick={() => router.push(`/agents/${agent.agent_id}`)}
+                              >
                                 {agent.name}
                               </h3>
                               <motion.span
@@ -382,7 +489,6 @@ const DashboardPage: React.FC = () => {
                                     ? "text-emerald-300 bg-emerald-900/40 border border-emerald-700/50"
                                     : "text-red-300 bg-red-900/40 border border-red-700/50"
                                 }`}
-                                whileHover={{ scale: 1.1 }}
                               >
                                 {agent.is_active ? "Active" : "Inactive"}
                               </motion.span>
@@ -392,48 +498,63 @@ const DashboardPage: React.FC = () => {
                               {agent.creator.slice(-4)}
                             </p>
                           </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-8">
-                            <motion.div
-                              className="text-center"
-                              whileHover={{ scale: 1.1 }}
+                          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6 lg:gap-8">
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-8">
+                              <motion.div
+                                className="text-center"
+                              >
+                                <div className="text-2xl font-bold text-emerald-400 mb-1">
+                                  {agent.total_subscribers}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  Subscribers
+                                </div>
+                              </motion.div>
+                              <motion.div
+                                className="text-center"
+                              >
+                                <div className="text-2xl font-bold text-blue-400 mb-1">
+                                  {(
+                                    parseInt(agent.subscription_fee) / 1000000000
+                                  ).toFixed(2)}{" "}
+                                  SUI
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  Sub Fee
+                                </div>
+                              </motion.div>
+                              <motion.div
+                                className="text-center"
+                              >
+                                <div className="text-2xl font-bold text-white mb-1">
+                                  {(agent.created_at &&
+                                  typeof agent.created_at === "object" &&
+                                  "toDate" in agent.created_at
+                                    ? agent.created_at.toDate()
+                                    : new Date(agent.created_at)
+                                  ).toLocaleDateString()}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  Created
+                                </div>
+                              </motion.div>
+                            </div>
+                            
+                            {/* Deposit Button */}
+                            <motion.button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDepositModal(agent);
+                              }}
+                              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg font-medium transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              disabled={!agent.is_active || isTransacting}
                             >
-                              <div className="text-2xl font-bold text-emerald-400 mb-1">
-                                {agent.total_subscribers}
-                              </div>
-                              <div className="text-xs text-gray-400">
-                                Subscribers
-                              </div>
-                            </motion.div>
-                            <motion.div
-                              className="text-center"
-                              whileHover={{ scale: 1.1 }}
-                            >
-                              <div className="text-2xl font-bold text-blue-400 mb-1">
-                                {(
-                                  parseInt(agent.subscription_fee) / 1000000000
-                                ).toFixed(2)}{" "}
-                                SUI
-                              </div>
-                              <div className="text-xs text-gray-400">
-                                Sub Fee
-                              </div>
-                            </motion.div>
-                            <motion.div
-                              className="text-center"
-                              whileHover={{ scale: 1.1 }}
-                            >
-                              <div className="text-2xl font-bold text-white mb-1">
-                                {(agent.created_at &&
-                                typeof agent.created_at === "object" &&
-                                "toDate" in agent.created_at
-                                  ? agent.created_at.toDate()
-                                  : new Date(agent.created_at)
-                                ).toLocaleDateString()}
-                              </div>
-                              <div className="text-xs text-gray-400">
-                                Created
-                              </div>
-                            </motion.div>
+                              <Wallet className="w-4 h-4" />
+                              <span>Deposit</span>
+                            </motion.button>
                           </div>
                         </div>
                       </div>
@@ -444,6 +565,175 @@ const DashboardPage: React.FC = () => {
           </motion.div>
         </div>
       </motion.div>
+
+      {/* Deposit Modal */}
+      {showDepositModal && selectedAgent && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div
+            className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 max-w-md w-full"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-white">Deposit Funds</h3>
+              <button
+                onClick={closeDepositModal}
+                className="text-gray-400 hover:text-white transition-colors"
+                disabled={depositLoading}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-300 mb-2">Agent: {selectedAgent.name}</p>
+              <p className="text-sm text-gray-400">
+                Minimum deposit: 0.2 SUI
+              </p>
+              {selectedAgent.tee_wallet_address && (
+                <p className="text-xs text-gray-500 mt-1">
+                  TEE Wallet: {selectedAgent.tee_wallet_address.slice(0, 10)}...{selectedAgent.tee_wallet_address.slice(-4)}
+                </p>
+              )}
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Amount (SUI)
+              </label>
+              <input
+                type="number"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                placeholder="0.2"
+                min="0.2"
+                step="0.1"
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                disabled={depositLoading}
+              />
+            </div>
+
+            {depositError && (
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+                <p className="text-red-300 text-sm">{depositError}</p>
+              </div>
+            )}
+
+            {depositSuccess && (
+              <div className="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg">
+                <p className="text-green-300 text-sm">{depositSuccess}</p>
+              </div>
+            )}
+
+            <div className="flex space-x-4">
+              <button
+                onClick={closeDepositModal}
+                className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                disabled={depositLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeposit}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                disabled={depositLoading || !depositAmount || parseFloat(depositAmount) < 0.2}
+              >
+                {depositLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    <span>Deposit</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Success Popup */}
+      {showSuccessPopup && successTransactionDigest && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <motion.div
+            className="bg-white/10 backdrop-blur-xl border border-green-500/30 rounded-2xl p-8 max-w-md w-full"
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          >
+            <div className="text-center">
+              {/* Success Icon */}
+              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  ✅
+                </motion.div>
+              </div>
+
+              {/* Success Message */}
+              <h3 className="text-2xl font-bold text-white mb-2">
+                Deposit Successful!
+              </h3>
+              <p className="text-gray-300 mb-6">
+                Your funds have been successfully transferred to the agent's TEE wallet.
+              </p>
+
+              {/* Transaction Details */}
+              <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Amount:</span>
+                    <span className="text-white font-medium">{depositAmount} SUI</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Agent:</span>
+                    <span className="text-white font-medium">{selectedAgent?.name}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Transaction:</span>
+                    <span className="text-white font-mono text-xs">
+                      {successTransactionDigest.slice(0, 8)}...{successTransactionDigest.slice(-8)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3">
+                <button
+                  onClick={closeSuccessPopup}
+                  className="flex-1 px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Close
+                </button>
+                <motion.a
+                  href={`https://suiscan.xyz/devnet/tx/${successTransactionDigest}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-medium transition-all duration-300 text-center flex items-center justify-center space-x-2"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <ArrowUpRight className="w-4 h-4" />
+                  <span>View on SuiScan</span>
+                </motion.a>
+              </div>
+
+              {/* Auto-close indicator */}
+              <p className="text-xs text-gray-500 mt-4">
+                This popup will auto-close in 10 seconds
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
