@@ -1144,8 +1144,8 @@ Please check the console for detailed error information and try again.`);
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={handleSuccessModalClose}
-        title="🎉 Agent Created Successfully!"
-        message={`Your secure trading agent "${successData.agentName}" has been deployed to the Sui blockchain.`}
+        title="Agent Created Successfully!"
+        message={`Your secure trading agent "${successData.agentName}" has been deployed to the Sui blockchain and is now available in the marketplace!`}
         transactionHash={successData.transactionDigest}
         agentId={successData.agentId}
         agentName={successData.agentName}

@@ -47,6 +47,23 @@ const AgentDetailPage: React.FC = () => {
     []
   );
 
+  // State for localStorage agent
+  const [localStorageAgent, setLocalStorageAgent] = useState<any>(null);
+  
+  // Load from localStorage when component mounts or ID changes
+  useEffect(() => {
+    if (typeof id === "string") {
+      const storedAgents = JSON.parse(localStorage.getItem('localAgents') || '[]');
+      const foundAgent = storedAgents.find((agent: any) => agent.agent_id === id);
+      if (foundAgent) {
+        console.log('📱 Found agent in localStorage:', foundAgent.name);
+        setLocalStorageAgent(foundAgent);
+      } else {
+        setLocalStorageAgent(null);
+      }
+    }
+  }, [id]);
+
   // Fetch agent from Firestore
   const { agent: firebaseAgent, loading } = useTradingAgent(
     typeof id === "string" ? id : null
@@ -54,6 +71,60 @@ const AgentDetailPage: React.FC = () => {
 
   // Map TradingAgent to Agent type
   const agent: Agent | undefined = useMemo(() => {
+    // Check localStorage first (newly created agents)
+    if (localStorageAgent) {
+      const subscriberCount =
+        realSubscriberCount !== null
+          ? realSubscriberCount
+          : localStorageAgent.total_subscribers;
+
+      return {
+        id: localStorageAgent.agent_id,
+        name: localStorageAgent.name,
+        creator: localStorageAgent.creator,
+        strategy: `Agent ID: ${localStorageAgent.agent_id.slice(0, 10)}...`,
+        description: localStorageAgent.description,
+        riskLevel: "Low" as "Low" | "Medium" | "High",
+        fee: parseInt(localStorageAgent.subscription_fee) / 10000000,
+        subscribers: subscriberCount,
+        tags: [
+          "Blockchain",
+          "Automated",
+          "Just Created",
+          "TEE Protected",
+        ],
+        performanceMetrics: {
+          totalReturn: generateStableRandom(
+            localStorageAgent.agent_id + "_return",
+            10,
+            60,
+            2
+          ),
+          winRate: generateStableRandom(
+            localStorageAgent.agent_id + "_winrate",
+            60,
+            100,
+            1
+          ),
+          sharpeRatio: generateStableRandom(
+            localStorageAgent.agent_id + "_sharpe",
+            1,
+            3,
+            2
+          ),
+          maxDrawdown: generateStableRandom(
+            localStorageAgent.agent_id + "_drawdown",
+            5,
+            20,
+            1
+          ),
+        },
+        createdAt: localStorageAgent.created_at,
+        _isLocalAgent: true,
+      };
+    }
+    
+    // Fallback to Firebase agent
     if (firebaseAgent) {
       // Use real subscriber count if available, otherwise use Firebase data
       const subscriberCount =
@@ -114,7 +185,7 @@ const AgentDetailPage: React.FC = () => {
       return mockAgents.find((a: Agent) => a.id === id);
     }
     return undefined;
-  }, [firebaseAgent, id, realSubscriberCount]);
+  }, [firebaseAgent, localStorageAgent, id, realSubscriberCount, generateStableRandom]);
 
   // Fetch real subscriber count from smart contract
   // Check subscription status from Firebase (primary approach)
@@ -134,7 +205,26 @@ const AgentDetailPage: React.FC = () => {
         userAddress: userAddress,
       });
 
-      // Primary approach: Check Firebase
+      // For localStorage agents, check localStorage first for faster response
+      if (localStorageAgent) {
+        console.log("📱 Checking localStorage subscription for localStorage agent...");
+        const localSubscriptions = localStorage.getItem("userSubscriptions");
+        if (localSubscriptions) {
+          try {
+            const subscriptions = JSON.parse(localSubscriptions);
+            const key = `${userAddress}_${agent.id}`;
+            if (subscriptions[key]) {
+              setIsSubscribed(true);
+              console.log("✅ Subscription found in localStorage for localStorage agent");
+              return; // Skip Firebase check
+            }
+          } catch (error) {
+            console.error("Error parsing localStorage subscriptions:", error);
+          }
+        }
+      }
+
+      // Primary approach: Check Firebase (for Firebase agents or as fallback)
       try {
         const subscription = await checkUserSubscription(agent.id, userAddress);
         console.log("🔍 Firebase subscription check result:", subscription);
@@ -212,7 +302,7 @@ const AgentDetailPage: React.FC = () => {
     };
 
     checkSubscriptionStatus();
-  }, [agent?.id, isLoggedIn, userAddress]);
+  }, [agent?.id, isLoggedIn, userAddress, localStorageAgent]);
 
   // Fetch real subscriber count from smart contract
   useEffect(() => {
@@ -235,7 +325,7 @@ const AgentDetailPage: React.FC = () => {
     fetchRealSubscriberCount();
   }, [agent?.id, isLoggedIn]); // Removed getAgentInfo from dependencies
 
-  if (loading) {
+  if (loading && !localStorageAgent) {
     return <div className="text-center py-12 text-white">Loading agent...</div>;
   }
 
@@ -289,16 +379,44 @@ const AgentDetailPage: React.FC = () => {
             "🔄 Updating subscription status after successful transaction..."
           );
 
-          // Store in localStorage immediately for instant UI update
-          const localSubscriptions =
-            localStorage.getItem("userSubscriptions") || "{}";
-          const subscriptions = JSON.parse(localSubscriptions);
-          subscriptions[`${userAddress}_${agent.id}`] = true;
-          localStorage.setItem(
-            "userSubscriptions",
-            JSON.stringify(subscriptions)
-          );
-          console.log("💾 Subscription stored in localStorage");
+                  // Store in localStorage immediately for instant UI update
+        const localSubscriptions =
+          localStorage.getItem("userSubscriptions") || "{}";
+        const subscriptions = JSON.parse(localSubscriptions);
+        subscriptions[`${userAddress}_${agent.id}`] = true;
+        localStorage.setItem(
+          "userSubscriptions",
+          JSON.stringify(subscriptions)
+        );
+        console.log("💾 Subscription stored in localStorage");
+
+        // Update localStorage agent subscriber count if this is a localStorage agent
+        if (localStorageAgent) {
+          const newSubscriberCount = localStorageAgent.total_subscribers + 1;
+          
+          const storedAgents = JSON.parse(localStorage.getItem('localAgents') || '[]');
+          const updatedAgents = storedAgents.map((storedAgent: any) => {
+            if (storedAgent.agent_id === agent.id) {
+              return {
+                ...storedAgent,
+                total_subscribers: newSubscriberCount
+              };
+            }
+            return storedAgent;
+          });
+          localStorage.setItem('localAgents', JSON.stringify(updatedAgents));
+          
+          // Update local state immediately
+          setLocalStorageAgent({
+            ...localStorageAgent,
+            total_subscribers: newSubscriberCount
+          });
+          
+          // Update the real subscriber count state for immediate UI update
+          setRealSubscriberCount(newSubscriberCount);
+          
+          console.log("💾 Updated localStorage agent subscriber count to:", newSubscriberCount);
+        }
 
           // Try to verify from Firebase (this might fail initially if the collection doesn't exist)
           try {
@@ -402,7 +520,7 @@ const AgentDetailPage: React.FC = () => {
                   href={`https://suiscan.xyz/devnet/object/${agent.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-sm rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                  className="inline-flex items-center text-blue-600 dark:text-blue-400 text-sm hover:text-blue-800 dark:hover:text-blue-300 transition-colors underline hover:no-underline"
                 >
                   <svg
                     className="w-4 h-4 mr-1"
@@ -441,11 +559,17 @@ const AgentDetailPage: React.FC = () => {
                 {isTransacting
                   ? "Subscribing..."
                   : isSubscribed
-                    ? "Subscribed ✓"
+                  ? "Subscribed ✓"
                     : isLoggedIn
                       ? `Subscribe (${agent.fee.toFixed(2)}% fee)`
                       : "Login to Subscribe"}
               </button>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mt-3 text-center lg:text-left">
+                {realSubscriberCount !== null ? realSubscriberCount : agent.subscribers} subscribers
+                {realSubscriberCount !== null && (
+                  <span className="mt-2 ml-6 text-xs text-green-600 dark:text-green-400 font-medium"></span>
+                )}
+              </p>
             </div>
           </div>
 

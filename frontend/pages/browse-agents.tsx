@@ -21,6 +21,33 @@ const SearchForAgentPage: React.FC = () => {
   >("All");
   const [sortBy, setSortBy] = useState<string>("subscribers"); // Default to trending
 
+  // Get localStorage agents
+  const [localAgents, setLocalAgents] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    // Load agents from localStorage on component mount
+    const loadLocalAgents = () => {
+      const storedAgents = JSON.parse(localStorage.getItem('localAgents') || '[]');
+      setLocalAgents(storedAgents);
+      console.log('📱 Browse page loaded', storedAgents.length, 'agents from localStorage');
+    };
+
+    loadLocalAgents();
+
+    // Refresh local agents when the page becomes visible (e.g., returning from create page)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadLocalAgents();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   const {
     agents: firebaseAgents,
     loading,
@@ -60,14 +87,48 @@ const SearchForAgentPage: React.FC = () => {
             : new Date().toISOString(),
       })
     );
+
+    // Convert localStorage agents to display format
+    const convertedLocalAgents: Agent[] = localAgents.map((localAgent) => ({
+      id: localAgent.agent_id,
+      name: localAgent.name,
+      creator: localAgent.creator,
+      strategy: `Agent ID: ${localAgent.agent_id.slice(0, 10)}...`,
+      description: localAgent.description,
+      riskLevel: "Low" as "Low" | "Medium" | "High",
+      fee: parseInt(localAgent.subscription_fee) / 1000000000, // Convert from mist to SUI
+      subscribers: localAgent.total_subscribers,
+      tags: [
+        "Blockchain",
+        "Automated",
+        "Just Created", // Special tag for newly created agents
+        "TEE Protected",
+      ],
+      performanceMetrics: {
+        totalReturn: Math.random() * 50 + 10, // Mock data for demo
+        winRate: Math.random() * 40 + 60, // Mock data for demo
+        sharpeRatio: Math.random() * 2 + 1,
+        maxDrawdown: Math.random() * 15 + 5,
+      },
+      createdAt: localAgent.created_at,
+      _isLocalAgent: true, // Flag to identify local agents
+    }));
+
     // Add mock agents with varied risk levels for demonstration
     const variedMockAgents = mockAgents.map((agent, index) => ({
       ...agent,
       riskLevel: index % 3 === 0 ? "High" : index % 3 === 1 ? "Medium" : "Low",
     })) as Agent[];
 
-    return [...convertedFirebaseAgents, ...variedMockAgents];
-  }, [firebaseAgents]);
+    // Combine all sources: localStorage agents first (newest), then Firebase, then mock data
+    // Filter out duplicates by agent ID (localStorage takes precedence)
+    const allCombined = [...convertedLocalAgents, ...convertedFirebaseAgents, ...variedMockAgents];
+    const uniqueAgents = allCombined.filter((agent, index, self) =>
+      index === self.findIndex((a) => a.id === agent.id)
+    );
+
+    return uniqueAgents;
+  }, [firebaseAgents, localAgents]);
 
   const filteredAndSortedAgents = useMemo(() => {
     let agentsToShow = [...allAgents];
