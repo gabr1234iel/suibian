@@ -1,0 +1,4 @@
+# External endpoints that the enclave is allowed to access
+endpoints:
+  - fullnode.devnet.sui.io   # Sui devnet RPC for executing trades
+  - fullnode.testnet.sui.io  # Backup testnet RPC

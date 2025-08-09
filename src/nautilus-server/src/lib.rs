@@ -16,6 +16,9 @@ pub mod examples {
     #[cfg(feature = "weather")]
     pub mod weather;
 
+    #[cfg(feature = "trading")]
+    pub mod trading;
+
     #[cfg(feature = "seal-example")]
     pub mod seal_example;
 }
@@ -27,6 +30,14 @@ pub mod app {
     #[cfg(feature = "weather")]
     pub use crate::examples::weather::{process_data, WeatherRequest, WeatherResponse};
 
+    #[cfg(feature = "trading")]
+    pub use crate::examples::trading::{
+        init_wallet, create_user_balance, process_data, get_wallet_status, withdraw_funds,
+        InitWalletRequest, InitWalletResponse, CreateBalanceRequest, CreateBalanceResponse,
+        TradeRequest, TradeResponse, WalletStatusRequest, WalletStatusResponse,
+        WithdrawRequest, WithdrawResponse,
+    };
+
     #[cfg(feature = "seal-example")]
     pub use crate::examples::seal_example::{
         complete_parameter_load, init_parameter_load, ping, process_data, spawn_host_init_server,
@@ -36,15 +47,15 @@ pub mod app {
 
 pub mod common;
 
-/// App state, at minimum needs to maintain the ephemeral keypair.  
+/// App state, at minimum needs to maintain the ephemeral keypair
 pub struct AppState {
     /// Ephemeral keypair on boot
     pub eph_kp: Ed25519KeyPair,
-    /// API key when querying api.weatherapi.com
+    /// API key when needed (for weather/twitter APIs)
     pub api_key: String,
 }
 
-/// Implement IntoResponse for EnclaveError.
+/// Implement IntoResponse for EnclaveError
 impl IntoResponse for EnclaveError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
@@ -57,7 +68,7 @@ impl IntoResponse for EnclaveError {
     }
 }
 
-/// Enclave errors enum.
+/// Enclave errors enum
 #[derive(Debug)]
 pub enum EnclaveError {
     GenericError(String),

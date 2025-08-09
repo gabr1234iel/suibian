@@ -47,4 +47,5 @@ regex = { version = "1.5", optional = true }
 default = ["weather"]
 weather = []
 twitter = ["regex"]
+trading = ["sui-sdk", "sui-types", "sui-json-rpc-types"]
 seal-example = ["sui-sdk", "sui-types", "sui-json-rpc-types"]
