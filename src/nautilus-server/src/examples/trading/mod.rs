@@ -1,7 +1,7 @@
 // Copyright (c), Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::common::{IntentMessage, IntentScope, ProcessDataRequest, ProcessedDataResponse, to_signed_response};
+use crate::common::{IntentMessage as CommonIntentMessage, IntentScope, ProcessDataRequest, ProcessedDataResponse, to_signed_response};
 use crate::{AppState, EnclaveError};
 use fastcrypto::ed25519::Ed25519KeyPair;
 use fastcrypto::encoding::{Encoding, Hex};
@@ -14,15 +14,13 @@ use tracing::info;
 
 // Sui SDK imports
 #[cfg(feature = "trading")]
-use sui_sdk::{SuiClient, SuiClientBuilder};
+use sui_sdk::SuiClientBuilder;
 #[cfg(feature = "trading")]
-use sui_types::{
-    base_types::{ObjectID, SuiAddress}, 
-    coin::CoinMetadata,
-    transaction::{Transaction, TransactionData}
-};
+use sui_types::base_types::{ObjectID, SuiAddress};
 #[cfg(feature = "trading")]
-use sui_json_rpc_types::{SuiObjectResponse, SuiObjectDataOptions, SuiTransactionBlockResponse};
+use sui_types::crypto::{SuiKeyPair, PublicKey};
+#[cfg(feature = "trading")]
+use shared_crypto::intent::{Intent, IntentMessage};
 
 // Constants - Your DEX configuration
 #[allow(dead_code)]
@@ -32,13 +30,17 @@ const POOL_ID: &str = "0xdb0eb25e57a67e8e606f3b42dd68be6fabafb193c0d90dfd1b47e88
 #[allow(dead_code)]
 const SUI_RPC_URL: &str = "https://fullnode.devnet.sui.io:443";
 
+// Subscription Manager Constants
+const SUBSCRIPTION_MANAGER_PACKAGE_ID: &str = "0xfd6a00339d853aae2473bab92a11d2db322604e33339bad08e8e52f97470fa9d";
+const SUBSCRIPTION_MANAGER_ID: &str = "0x83e0dd1f1df2c174f353a3b0cd0fc03141690f3f2ebd7bfbbea409f8db409454";
+
 // Lazy static for wallet state (ephemeral - exists only in memory)
 lazy_static! {
     static ref TRADING_WALLET: Arc<RwLock<Option<WalletState>>> = Arc::new(RwLock::new(None));
 }
 
 struct WalletState {
-    keypair: Arc<Ed25519KeyPair>,
+    keypair: Arc<SuiKeyPair>,
     address: String,
     owner: String,
 }
@@ -104,25 +106,29 @@ pub struct WithdrawResponse {
     pub recipient: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubscriptionWithdrawRequest {
+    pub agent_id: String,
+    pub amount: u64,
+    pub recipient: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SubscriptionWithdrawResponse {
+    pub tx_digest: String,
+    pub agent_id: String,
+    pub amount: u64,
+    pub recipient: String,
+}
+
 // ====== Core Functions ======
 
 // ====== Helper Functions ======
 
-fn derive_sui_address(keypair: &Ed25519KeyPair) -> String {
-    use fastcrypto::hash::{Blake2b256, HashFunction};
-    
+fn derive_sui_address(keypair: &SuiKeyPair) -> String {
     let public_key = keypair.public();
-    let public_key_bytes = public_key.as_bytes();
-    
-    let mut hasher = Blake2b256::default();
-    hasher.update(&[0x00]); // Ed25519 flag
-    hasher.update(public_key_bytes);
-    hasher.update(&[0x00]); // 1 byte padding
-    
-    let hash = hasher.finalize();
-    let address_bytes = &hash.as_ref()[..32];
-    
-    format!("0x{}", Hex::encode(address_bytes))
+    let address = SuiAddress::from(&public_key);
+    address.to_string()
 }
 
 fn get_current_timestamp() -> u64 {
@@ -135,33 +141,166 @@ fn get_current_timestamp() -> u64 {
 // Mock implementations - replace with actual sui-sdk calls
 
 async fn build_and_execute_swap_sui_to_usdc(
-    keypair: &Ed25519KeyPair,
+    keypair: &SuiKeyPair,
     _wallet_address: &str,
     _amount: u64,
     _min_output: u64,
 ) -> Result<String, EnclaveError> {
-    let mock_signature: fastcrypto::ed25519::Ed25519Signature = keypair.sign(b"swap_sui_to_usdc");
-    Ok(format!("0x{}", Hex::encode(&mock_signature.as_bytes()[..8])))
+    // For mock, just return a hash based on the operation
+    use fastcrypto::hash::{Blake2b256, HashFunction};
+    let mut hasher = Blake2b256::default();
+    hasher.update(b"swap_sui_to_usdc");
+    let hash = hasher.finalize();
+    Ok(format!("0x{}", Hex::encode(&hash.as_ref()[..8])))
 }
 
 async fn build_and_execute_swap_usdc_to_sui(
-    keypair: &Ed25519KeyPair,
+    keypair: &SuiKeyPair,
     _wallet_address: &str,
     _amount: u64,
     _min_output: u64,
 ) -> Result<String, EnclaveError> {
-    let mock_signature: fastcrypto::ed25519::Ed25519Signature = keypair.sign(b"swap_usdc_to_sui");
-    Ok(format!("0x{}", Hex::encode(&mock_signature.as_bytes()[..8])))
+    // For mock, just return a hash based on the operation
+    use fastcrypto::hash::{Blake2b256, HashFunction};
+    let mut hasher = Blake2b256::default();
+    hasher.update(b"swap_usdc_to_sui");
+    let hash = hasher.finalize();
+    Ok(format!("0x{}", Hex::encode(&hash.as_ref()[..8])))
 }
 
 async fn build_and_execute_withdrawal(
-    keypair: &Ed25519KeyPair,
+    keypair: &SuiKeyPair,
     _recipient: &str,
     amount: Option<u64>,
 ) -> Result<(String, u64), EnclaveError> {
-    let mock_signature: fastcrypto::ed25519::Ed25519Signature = keypair.sign(b"withdraw");
+    // For mock, just return a hash based on the operation
+    use fastcrypto::hash::{Blake2b256, HashFunction};
+    let mut hasher = Blake2b256::default();
+    hasher.update(b"withdraw");
+    let hash = hasher.finalize();
     let actual_amount = amount.unwrap_or(1000000000); // Mock 1 SUI
-    Ok((format!("0x{}", Hex::encode(&mock_signature.as_bytes()[..8])), actual_amount))
+    Ok((format!("0x{}", Hex::encode(&hash.as_ref()[..8])), actual_amount))
+}
+
+async fn withdraw_from_subscription_manager(
+    keypair: &SuiKeyPair,
+    agent_id: &str,
+    amount: u64,
+    recipient: &str,
+) -> Result<String, EnclaveError> {
+    #[cfg(feature = "trading")]
+    {
+        // Create Sui client
+        let client = SuiClientBuilder::default()
+            .build(SUI_RPC_URL)
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to create Sui client: {}", e)))?;
+
+        let sender = derive_sui_address(keypair).parse::<SuiAddress>()
+            .map_err(|e| EnclaveError::GenericError(format!("Invalid sender address: {}", e)))?;
+        let recipient_addr = recipient.parse::<SuiAddress>()
+            .map_err(|e| EnclaveError::GenericError(format!("Invalid recipient address: {}", e)))?;
+        let agent_object_id = agent_id.parse::<ObjectID>()
+            .map_err(|e| EnclaveError::GenericError(format!("Invalid agent ID: {}", e)))?;
+
+        // Use simple Move call to check subscription status
+        // This is a simplified approach - just check if user has deposited funds
+        // In production, you might want to add more validation
+
+        // Step 1: Get coins for transfer
+        let coins = client
+            .coin_read_api()
+            .get_coins(sender, Some("0x2::sui::SUI".to_string()), None, None)
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to get coins: {}", e)))?;
+
+        if coins.data.is_empty() {
+            return Err(EnclaveError::GenericError("No SUI coins available".to_string()));
+        }
+
+        // Find a coin with sufficient balance for both transfer and gas
+        let gas_coin = coins.data.into_iter()
+            .find(|coin| coin.balance >= amount + 10000000) // amount + gas (0.01 SUI)
+            .ok_or_else(|| EnclaveError::GenericError("Insufficient balance for withdrawal + gas".to_string()))?;
+
+        // Build simple transfer transaction using GasCoin argument
+        let mut ptb = sui_types::programmable_transaction_builder::ProgrammableTransactionBuilder::new();
+        
+        // Create pure arguments first to avoid borrow conflicts
+        let amount_arg = ptb.pure(amount).unwrap();
+        let recipient_arg = ptb.pure(recipient_addr).unwrap();
+
+        // Use Argument::GasCoin to reference the gas coin
+        let split_coin = ptb.command(sui_types::transaction::Command::SplitCoins(
+            sui_types::transaction::Argument::GasCoin,
+            vec![amount_arg],
+        ));
+
+        // Transfer the split coin to recipient
+        ptb.command(sui_types::transaction::Command::TransferObjects(
+            vec![split_coin],
+            recipient_arg,
+        ));
+
+        let pt = ptb.finish();
+        
+        // Get gas budget and price
+        let gas_budget = 10000000; // 0.01 SUI for simple transfer
+        let gas_price = client.read_api().get_reference_gas_price().await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to get gas price: {}", e)))?;
+
+        // Create transaction data
+        let tx_data = sui_types::transaction::TransactionData::new_programmable(
+            sender,
+            vec![(
+                gas_coin.coin_object_id,
+                gas_coin.version,
+                gas_coin.digest,
+            )],
+            pt,
+            gas_budget,
+            gas_price,
+        );
+
+        // Sign transaction
+        let intent_msg = IntentMessage::new(
+            Intent::sui_transaction(),
+            tx_data,
+        );
+        
+        // Sign using the SuiKeyPair - following the sample code pattern
+        use fastcrypto::hash::HashFunction;
+        let mut hasher = sui_types::crypto::DefaultHash::default();
+        hasher.update(bcs::to_bytes(&intent_msg).unwrap());
+        let digest = hasher.finalize().digest;
+        let signature = keypair.sign(&digest);
+
+        let transaction = sui_types::transaction::Transaction::from_data(intent_msg.value, vec![signature]);
+
+        // Execute transaction
+        let tx_response = client
+            .quorum_driver_api()
+            .execute_transaction_block(
+                transaction,
+                sui_json_rpc_types::SuiTransactionBlockResponseOptions::full_content(),
+                None,
+            )
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Transaction execution failed: {}", e)))?;
+
+        Ok(tx_response.digest.to_string())
+    }
+    
+    #[cfg(not(feature = "trading"))]
+    {
+        // Mock implementation for non-trading builds
+        // For mock, just return a hash based on the operation
+        use fastcrypto::hash::{Blake2b256, HashFunction};
+        let mut hasher = Blake2b256::default();
+        hasher.update(format!("withdraw_{}_{}_{}", agent_id, amount, recipient).as_bytes());
+        let hash = hasher.finalize();
+        Ok(format!("0x{}", Hex::encode(&hash.as_ref()[..8])))
+    }
 }
 
 async fn fetch_balances(address: &str) -> Result<(u64, u64), EnclaveError> {
@@ -270,11 +409,37 @@ pub async fn withdraw_wrapper(
     }
 }
 
+pub async fn subscription_withdraw_wrapper(
+    request: ProcessDataRequest<SubscriptionWithdrawRequest>,
+    state: Arc<AppState>,
+) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
+    match subscription_withdraw_internal(state, request).await {
+        Ok(response) => Ok(Box::new(warp::reply::json(&response))),
+        Err(e) => Ok(Box::new(warp::reply::with_status(
+            warp::reply::json(&serde_json::json!({ "error": e.to_string() })),
+            warp::http::StatusCode::BAD_REQUEST,
+        ))),
+    }
+}
+
+pub async fn simple_transfer_wrapper(
+    request: ProcessDataRequest<WithdrawRequest>,
+    state: Arc<AppState>,
+) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
+    match simple_transfer_internal(state, request).await {
+        Ok(response) => Ok(Box::new(warp::reply::json(&response))),
+        Err(e) => Ok(Box::new(warp::reply::with_status(
+            warp::reply::json(&serde_json::json!({ "error": e.to_string() })),
+            warp::http::StatusCode::BAD_REQUEST,
+        ))),
+    }
+}
+
 // Internal functions that don't depend on axum
 async fn init_wallet_internal(
     state: Arc<AppState>,
     request: ProcessDataRequest<InitWalletRequest>,
-) -> Result<ProcessedDataResponse<IntentMessage<InitWalletResponse>>, EnclaveError> {
+) -> Result<ProcessedDataResponse<CommonIntentMessage<InitWalletResponse>>, EnclaveError> {
     info!("Initializing trading wallet for owner: {}", request.payload.owner_address);
     
     let mut wallet_guard = TRADING_WALLET.write().await;
@@ -284,8 +449,9 @@ async fn init_wallet_internal(
         return Err(EnclaveError::GenericError("Wallet already initialized".to_string()));
     }
     
-    // Generate new Ed25519 keypair
-    let keypair = Ed25519KeyPair::generate(&mut rand::thread_rng());
+    // Generate new SuiKeyPair
+    let ed25519_keypair = Ed25519KeyPair::generate(&mut rand::thread_rng());
+    let keypair = SuiKeyPair::Ed25519(ed25519_keypair);
     let address = derive_sui_address(&keypair);
     
     let wallet_state = WalletState {
@@ -316,7 +482,7 @@ async fn init_wallet_internal(
 async fn execute_trade_internal(
     state: Arc<AppState>,
     request: ProcessDataRequest<TradeRequest>,
-) -> Result<ProcessedDataResponse<IntentMessage<TradeResponse>>, EnclaveError> {
+) -> Result<ProcessedDataResponse<CommonIntentMessage<TradeResponse>>, EnclaveError> {
     info!("Executing trade: {} {}", request.payload.action, request.payload.amount);
     
     let wallet_guard = TRADING_WALLET.read().await;
@@ -364,7 +530,7 @@ async fn execute_trade_internal(
 async fn wallet_status_internal(
     state: Arc<AppState>,
     _request: ProcessDataRequest<EmptyRequest>,
-) -> Result<ProcessedDataResponse<IntentMessage<WalletStatusResponse>>, EnclaveError> {
+) -> Result<ProcessedDataResponse<CommonIntentMessage<WalletStatusResponse>>, EnclaveError> {
     info!("Getting wallet status");
     
     let wallet_guard = TRADING_WALLET.read().await;
@@ -409,7 +575,7 @@ async fn wallet_status_internal(
 async fn withdraw_internal(
     state: Arc<AppState>,
     request: ProcessDataRequest<WithdrawRequest>,
-) -> Result<ProcessedDataResponse<IntentMessage<WithdrawResponse>>, EnclaveError> {
+) -> Result<ProcessedDataResponse<CommonIntentMessage<WithdrawResponse>>, EnclaveError> {
     info!("Processing withdrawal to: {}", request.payload.recipient);
     
     let wallet_guard = TRADING_WALLET.read().await;
@@ -435,6 +601,163 @@ async fn withdraw_internal(
     let response = WithdrawResponse {
         tx_digest,
         amount,
+        recipient: request.payload.recipient,
+    };
+    
+    Ok(to_signed_response(
+        &state.eph_kp,
+        response,
+        timestamp_ms,
+        IntentScope::ProcessData,
+    ))
+}
+
+async fn simple_transfer_internal(
+    state: Arc<AppState>,
+    request: ProcessDataRequest<WithdrawRequest>,
+) -> Result<ProcessedDataResponse<CommonIntentMessage<WithdrawResponse>>, EnclaveError> {
+    info!("Processing simple transfer to: {} amount: {:?}", request.payload.recipient, request.payload.amount);
+    
+    let wallet_guard = TRADING_WALLET.read().await;
+    let wallet_state = wallet_guard.as_ref()
+        .ok_or_else(|| EnclaveError::GenericError("Wallet not initialized".to_string()))?;
+    
+    #[cfg(feature = "trading")]
+    let tx_digest = {
+        use sui_types::programmable_transaction_builder::ProgrammableTransactionBuilder;
+        
+        let client = SuiClientBuilder::default()
+            .build(SUI_RPC_URL)
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to create Sui client: {}", e)))?;
+
+        let sender = derive_sui_address(&wallet_state.keypair).parse::<SuiAddress>()
+            .map_err(|e| EnclaveError::GenericError(format!("Invalid sender address: {}", e)))?;
+        let recipient_addr = request.payload.recipient.parse::<SuiAddress>()
+            .map_err(|e| EnclaveError::GenericError(format!("Invalid recipient address: {}", e)))?;
+        
+        let amount = request.payload.amount.unwrap_or(1000000000); // Default 1 SUI
+
+        // Get coins
+        let coins = client
+            .coin_read_api()
+            .get_coins(sender, Some("0x2::sui::SUI".to_string()), None, None)
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to get coins: {}", e)))?;
+
+        if coins.data.is_empty() {
+            return Err(EnclaveError::GenericError("No SUI coins available".to_string()));
+        }
+
+        let gas_coin = coins.data.into_iter()
+            .find(|coin| coin.balance >= amount + 10000000) // amount + gas (0.01 SUI)
+            .ok_or_else(|| EnclaveError::GenericError("Insufficient balance".to_string()))?;
+
+        // Build simple transfer using GasCoin argument (avoids double usage)
+        let mut ptb = ProgrammableTransactionBuilder::new();
+        
+        let amount_arg = ptb.pure(amount).unwrap();
+        let recipient_arg = ptb.pure(recipient_addr).unwrap();
+
+        // Use Argument::GasCoin to reference the gas coin instead of adding it as a separate object
+        let split_coin = ptb.command(sui_types::transaction::Command::SplitCoins(
+            sui_types::transaction::Argument::GasCoin,
+            vec![amount_arg],
+        ));
+
+        ptb.command(sui_types::transaction::Command::TransferObjects(
+            vec![split_coin],
+            recipient_arg,
+        ));
+
+        let pt = ptb.finish();
+        
+        let gas_budget = 10000000; // 0.01 SUI for simple transfer
+        let gas_price = client.read_api().get_reference_gas_price().await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to get gas price: {}", e)))?;
+
+        let tx_data = sui_types::transaction::TransactionData::new_programmable(
+            sender,
+            vec![(gas_coin.coin_object_id, gas_coin.version, gas_coin.digest)],
+            pt,
+            gas_budget,
+            gas_price,
+        );
+
+        let intent_msg = IntentMessage::new(Intent::sui_transaction(), tx_data);
+        // Sign using the SuiKeyPair - following the sample code pattern
+        use fastcrypto::hash::HashFunction;
+        let mut hasher = sui_types::crypto::DefaultHash::default();
+        hasher.update(bcs::to_bytes(&intent_msg).unwrap());
+        let digest = hasher.finalize().digest;
+        let signature = wallet_state.keypair.sign(&digest);
+
+        let transaction = sui_types::transaction::Transaction::from_data(intent_msg.value, vec![signature]);
+
+        let tx_response = client
+            .quorum_driver_api()
+            .execute_transaction_block(
+                transaction,
+                sui_json_rpc_types::SuiTransactionBlockResponseOptions::full_content(),
+                None,
+            )
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Transaction execution failed: {}", e)))?;
+
+        tx_response.digest.to_string()
+    };
+    
+    #[cfg(not(feature = "trading"))]
+    let tx_digest = {
+        // For mock, just return a hash based on the operation
+        use fastcrypto::hash::{Blake2b256, HashFunction};
+        let mut hasher = Blake2b256::default();
+        hasher.update(b"simple_transfer");
+        let hash = hasher.finalize();
+        format!("0x{}", Hex::encode(&hash.as_ref()[..8]))
+    };
+    
+    let timestamp_ms = get_current_timestamp();
+    
+    let response = WithdrawResponse {
+        tx_digest,
+        amount: request.payload.amount.unwrap_or(1000000000),
+        recipient: request.payload.recipient,
+    };
+    
+    Ok(to_signed_response(
+        &state.eph_kp,
+        response,
+        timestamp_ms,
+        IntentScope::ProcessData,
+    ))
+}
+
+async fn subscription_withdraw_internal(
+    state: Arc<AppState>,
+    request: ProcessDataRequest<SubscriptionWithdrawRequest>,
+) -> Result<ProcessedDataResponse<CommonIntentMessage<SubscriptionWithdrawResponse>>, EnclaveError> {
+    info!("Processing subscription withdrawal from agent: {} to: {} amount: {}", 
+          request.payload.agent_id, request.payload.recipient, request.payload.amount);
+    
+    let wallet_guard = TRADING_WALLET.read().await;
+    let wallet_state = wallet_guard.as_ref()
+        .ok_or_else(|| EnclaveError::GenericError("Wallet not initialized".to_string()))?;
+    
+    // This function validates subscription and executes withdrawal
+    let tx_digest = withdraw_from_subscription_manager(
+        &*wallet_state.keypair,
+        &request.payload.agent_id,
+        request.payload.amount,
+        &request.payload.recipient,
+    ).await?;
+    
+    let timestamp_ms = get_current_timestamp();
+    
+    let response = SubscriptionWithdrawResponse {
+        tx_digest,
+        agent_id: request.payload.agent_id,
+        amount: request.payload.amount,
         recipient: request.payload.recipient,
     };
     

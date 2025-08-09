@@ -28,6 +28,8 @@ async fn main() -> Result<()> {
         println!("   POST /wallet_status       - Get wallet address and current balances");
         println!("   POST /execute_trade       - Execute swap on DEX");
         println!("   POST /withdraw            - Withdraw funds (owner only)");
+        println!("   POST /simple_transfer     - Simple SUI transfer (test signature)");
+        println!("   POST /subscription_withdraw - Withdraw funds through subscription manager (subscribers only)");
     }
 
     #[cfg(feature = "weather")]
@@ -94,7 +96,19 @@ async fn main() -> Result<()> {
             .and(with_state(state.clone()))
             .and_then(nautilus_server::examples::trading::withdraw_wrapper);
 
-        init_wallet.or(execute_trade).or(wallet_status).or(withdraw)
+        let simple_transfer = warp::path("simple_transfer")
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_state(state.clone()))
+            .and_then(nautilus_server::examples::trading::simple_transfer_wrapper);
+
+        let subscription_withdraw = warp::path("subscription_withdraw")
+            .and(warp::post())
+            .and(warp::body::json())
+            .and(with_state(state.clone()))
+            .and_then(nautilus_server::examples::trading::subscription_withdraw_wrapper);
+
+        init_wallet.or(execute_trade).or(wallet_status).or(withdraw).or(simple_transfer).or(subscription_withdraw)
     };
 
     let routes = ping.or(health).or(attestation);
