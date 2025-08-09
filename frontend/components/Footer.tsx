@@ -29,7 +29,7 @@ const Footer: React.FC = () => {
       { name: "Analytics", href: "#analytics" },
     ],
     developers: [
-      { name: "Documentation", href: "#docs" },
+      { name: "Documentation", href: "docs" },
       { name: "API Reference", href: "#api" },
       { name: "SDKs", href: "#sdks" },
       { name: "Examples", href: "#examples" },
