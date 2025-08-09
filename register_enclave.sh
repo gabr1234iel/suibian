@@ -16,7 +16,7 @@ OTW_NAME=$6
 
 echo 'fetching attestation'
 # Fetch attestation and store the hex
-ATTESTATION_HEX=$(curl -s $ENCLAVE_URL/get_attestation | jq -r '.attestation')
+ATTESTATION_HEX=$(curl -s $ENCLAVE_URL/attestation | jq -r '.attestation')
 
 echo "got attestation, length=${#ATTESTATION_HEX}"
 

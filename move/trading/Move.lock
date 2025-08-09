@@ -2,10 +2,11 @@
 
 [move]
 version = 3
-manifest_digest = "C26A901C9CB3E83C8F0117B8D7923EEE6F95561854C8DD43EE9CC59A6B27E475"
-deps_digest = "F8BBB0CCB2491CA29A3DF03D6F92277A4F3574266507ACD77214D37ECA3F3082"
+manifest_digest = "A4964514453D233A2A1AE353CE5A300BD22A841EBCDBF6FC6E8BC8618AA178B5"
+deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 dependencies = [
   { id = "Sui", name = "Sui" },
+  { id = "enclave", name = "enclave" },
 ]
 
 [[move.package]]
@@ -20,6 +21,14 @@ dependencies = [
   { id = "MoveStdlib", name = "MoveStdlib" },
 ]
 
+[[move.package]]
+id = "enclave"
+source = { local = "../enclave" }
+
+dependencies = [
+  { id = "Sui", name = "Sui" },
+]
+
 [move.toolchain-version]
 compiler-version = "1.53.2"
 edition = "2024.beta"
@@ -27,14 +36,8 @@ flavor = "sui"
 
 [env]
 
-[env.testnet]
-chain-id = "4c78adac"
-original-published-id = "0xb708ca69e559cefa6e69fa723637a192c35dbd83bf53f0161e59828455c905eb"
-latest-published-id = "0xb708ca69e559cefa6e69fa723637a192c35dbd83bf53f0161e59828455c905eb"
-published-version = "1"
-
 [env.devnet]
 chain-id = "4256f1d2"
-original-published-id = "0x9a9061d46c3fd8a08df5f31c09ef32867d8f4f51dac7cf23b36381fcecdcef82"
-latest-published-id = "0x9a9061d46c3fd8a08df5f31c09ef32867d8f4f51dac7cf23b36381fcecdcef82"
+original-published-id = "0xb66ee07ed5037f71b209a9d068a84d73520bd92837924e065f9d02b537950eab"
+latest-published-id = "0xb66ee07ed5037f71b209a9d068a84d73520bd92837924e065f9d02b537950eab"
 published-version = "1"
