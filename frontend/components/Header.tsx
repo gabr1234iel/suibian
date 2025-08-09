@@ -97,25 +97,41 @@ const Header = () => {
               <>
                 <Link
                   href="/marketplace"
-                  className="text-white hover:text-blue-400 transition-colors font-medium"
+                  className={`transition-colors font-medium ${
+                    router.pathname === "/marketplace"
+                      ? "text-white"
+                      : "text-white/80 hover:text-white"
+                  }`}
                 >
                   Marketplace
                 </Link>
                 <Link
                   href="/browse-agents"
-                  className="text-white/80 hover:text-white transition-colors font-medium"
+                  className={`transition-colors font-medium ${
+                    router.pathname === "/browse-agents" || router.pathname.startsWith("/agents")
+                      ? "text-white"
+                      : "text-white/80 hover:text-white"
+                  }`}
                 >
                   Browse Agents
                 </Link>
                 <Link
                   href="/dashboard"
-                  className="text-white/80 hover:text-white transition-colors font-medium"
+                  className={`transition-colors font-medium ${
+                    router.pathname === "/dashboard"
+                      ? "text-white"
+                      : "text-white/80 hover:text-white"
+                  }`}
                 >
                   Dashboard
                 </Link>
                 <Link
                   href="/create"
-                  className="text-white/80 hover:text-white transition-colors font-medium"
+                  className={`transition-colors font-medium ${
+                    router.pathname === "/create"
+                      ? "text-white"
+                      : "text-white/80 hover:text-white"
+                  }`}
                 >
                   Create Agent
                 </Link>
