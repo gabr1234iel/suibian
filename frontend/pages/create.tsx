@@ -14,7 +14,13 @@ interface AgentFormData {
   tags: string[];
   // Sui DeFi specific fields
   dexes: string[];
-  tradingStrategy: "arbitrage" | "momentum" | "meanReversion" | "gridTrading" | "dca" | "custom";
+  tradingStrategy:
+    | "arbitrage"
+    | "momentum"
+    | "meanReversion"
+    | "gridTrading"
+    | "dca"
+    | "custom";
   tokenPairs: string[];
   // TEE & Security Configuration
   allowedDomains: string[];
@@ -93,19 +99,19 @@ const CreateAgentPage: React.FC = () => {
   // Sui ecosystem DEXes
   const availableDexes = [
     "Cetus Protocol",
-    "Turbos Finance", 
+    "Turbos Finance",
     "BlueMove",
     "Aftermath Finance",
     "Kriya DEX",
     "SuiSwap",
     "Kai Finance",
-    "FlowX Finance"
+    "FlowX Finance",
   ];
 
   // Popular Sui token pairs
   const popularTokenPairs = [
     "SUI/USDC",
-    "SUI/USDT", 
+    "SUI/USDT",
     "WETH/USDC",
     "WBTC/USDC",
     "USDC/USDT",
@@ -113,7 +119,7 @@ const CreateAgentPage: React.FC = () => {
     "CETUS/SUI",
     "TURBOS/SUI",
     "BLUE/SUI",
-    "DEEP/SUI"
+    "DEEP/SUI",
   ];
   const [isInitializingBlockchain, setIsInitializingBlockchain] =
     useState(false);
@@ -148,8 +154,13 @@ const CreateAgentPage: React.FC = () => {
     try {
       console.log("🔄 zkLogin data missing, need to re-authenticate...");
 
-      // If we don't have zkLogin session data, user needs to re-authenticate
-      // This is a fallback - with localStorage persistence, this should rarely happen
+      // If we don't have a Google ID, we can't proceed
+      if (!userGoogleId) {
+        console.error("No Google ID available for blockchain initialization");
+        return false;
+      }
+
+      // If we don't have a zkLogin session, prompt the user to log in again
       alert(
         "Your session has expired. Please log out and log back in to continue with blockchain transactions."
       );
@@ -172,7 +183,7 @@ const CreateAgentPage: React.FC = () => {
     >
   ): void => {
     const { name, value, type } = e.target;
-    
+
     if (type === "checkbox") {
       const target = e.target as HTMLInputElement;
       setFormData((prev) => ({
@@ -242,7 +253,10 @@ const CreateAgentPage: React.FC = () => {
   };
 
   const addAllowedDomain = (): void => {
-    if (allowedDomainInput.trim() && !formData.allowedDomains.includes(allowedDomainInput.trim())) {
+    if (
+      allowedDomainInput.trim() &&
+      !formData.allowedDomains.includes(allowedDomainInput.trim())
+    ) {
       setFormData((prev) => ({
         ...prev,
         allowedDomains: [...prev.allowedDomains, allowedDomainInput.trim()],
@@ -254,7 +268,9 @@ const CreateAgentPage: React.FC = () => {
   const removeAllowedDomain = (domainToRemove: string): void => {
     setFormData((prev) => ({
       ...prev,
-      allowedDomains: prev.allowedDomains.filter((domain) => domain !== domainToRemove),
+      allowedDomains: prev.allowedDomains.filter(
+        (domain) => domain !== domainToRemove
+      ),
     }));
   };
 
@@ -397,16 +413,21 @@ Please check the console for detailed error information and try again.`);
   const blockchainStatus = getBlockchainStatus();
 
   return (
-    <div className="min-h-screen bg-dark-900 text-white">
+    <div className="min-h-screen bg-dark-900 text-white relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[32rem] h-[32rem] bg-green-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-bl from-green-500/10 via-transparent to-blue-500/10 pointer-events-none" />
       <Header />
-
-      <div className="max-w-4xl mx-auto px-6 py-8 pt-24">
+      <div className="max-w-4xl mx-auto px-6 py-8 pt-24 mt-5 relative z-10">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Create Secure Trading Agent
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            Deploy a verifiable trading agent powered by Nautilus TEE. Your strategy executes securely in a Trusted Execution Environment, with cryptographic proof of execution.
+            Deploy a verifiable trading agent powered by Nautilus TEE. Your
+            strategy executes securely in a Trusted Execution Environment, with
+            cryptographic proof of execution.
           </p>
 
           {/* Enhanced Blockchain Status Indicator */}
@@ -554,7 +575,10 @@ Please check the console for detailed error information and try again.`);
                 </label>
                 <div className="space-y-2">
                   {availableDexes.map((dex) => (
-                    <label key={dex} className="flex items-center space-x-2 cursor-pointer">
+                    <label
+                      key={dex}
+                      className="flex items-center space-x-2 cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         checked={formData.dexes.includes(dex)}
@@ -567,7 +591,9 @@ Please check the console for detailed error information and try again.`);
                         }}
                         className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                       />
-                      <span className="text-sm text-gray-700 dark:text-white">{dex}</span>
+                      <span className="text-sm text-gray-700 dark:text-white">
+                        {dex}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -651,7 +677,8 @@ Please check the console for detailed error information and try again.`);
               🔒 Nautilus TEE Configuration
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
-              Configure your agent's endpoint and security settings for the Trusted Execution Environment
+              Configure your agent's endpoint and security settings for the
+              Trusted Execution Environment
             </p>
 
             <div className="space-y-6">
@@ -734,11 +761,15 @@ Please check the console for detailed error information and try again.`);
                     className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
                   />
                   <div>
-                    <label htmlFor="attestationRequired" className="text-sm font-medium text-gray-700 dark:text-white">
+                    <label
+                      htmlFor="attestationRequired"
+                      className="text-sm font-medium text-gray-700 dark:text-white"
+                    >
                       Require TEE Attestation
                     </label>
                     <p className="text-xs text-gray-500 dark:text-gray-300">
-                      Enforce cryptographic proof that trades execute within the secure enclave
+                      Enforce cryptographic proof that trades execute within the
+                      secure enclave
                     </p>
                   </div>
                 </div>
@@ -747,15 +778,27 @@ Please check the console for detailed error information and try again.`);
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <div className="text-blue-600 dark:text-blue-400 mt-0.5">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">How it works</h4>
+                    <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      How it works
+                    </h4>
                     <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                      Your agent will send trading requests to a Nautilus TEE enclave. The enclave verifies your agent's identity, 
-                      executes trades securely, and provides cryptographic attestation of execution.
+                      Your agent will send trading requests to a Nautilus TEE
+                      enclave. The enclave verifies your agent's identity,
+                      executes trades securely, and provides cryptographic
+                      attestation of execution.
                     </p>
                   </div>
                 </div>
@@ -781,7 +824,10 @@ Please check the console for detailed error information and try again.`);
                     onChange={handleInputChange}
                     className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
                   />
-                  <label htmlFor="rsiEnabled" className="text-sm font-medium text-gray-700 dark:text-white">
+                  <label
+                    htmlFor="rsiEnabled"
+                    className="text-sm font-medium text-gray-700 dark:text-white"
+                  >
                     Enable RSI (Relative Strength Index)
                   </label>
                 </div>
@@ -830,7 +876,10 @@ Please check the console for detailed error information and try again.`);
                     onChange={handleInputChange}
                     className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
                   />
-                  <label htmlFor="maEnabled" className="text-sm font-medium text-gray-700 dark:text-white">
+                  <label
+                    htmlFor="maEnabled"
+                    className="text-sm font-medium text-gray-700 dark:text-white"
+                  >
                     Enable Moving Average Crossover
                   </label>
                 </div>

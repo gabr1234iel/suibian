@@ -11,8 +11,8 @@ const SuiBianLogo = () => (
 );
 
 const Header = () => {
-  const { isLoggedIn, logout, userAddress, balance, mounted } = useAppContext();
-  // const isLoggedIn = true;
+  const { logout, userAddress, balance, mounted } = useAppContext();
+  const isLoggedIn = true;
   const router = useRouter();
   const [showWalletPopup, setShowWalletPopup] = useState(false);
   const [copied, setCopied] = useState(false);

@@ -1,11 +1,14 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";  
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/router";
 import { agents as mockAgents } from "../../data/agents";
 import { Agent } from "../../types";
 import { useTradingAgent } from "../../hooks/useTradingAgents";
 import { useSuiTransactions } from "../../hooks/useSuiTransactions";
 import { useAppContext } from "../../context/AppContext";
-import { checkUserSubscription, UserSubscription } from "../../api/marketplaceApi";
+import {
+  checkUserSubscription,
+  UserSubscription,
+} from "../../api/marketplaceApi";
 import Header from "@/components/Header";
 import SuccessModal from "@/components/SuccessModal";
 
@@ -13,11 +16,15 @@ const AgentDetailPage: React.FC = () => {
   const router = useRouter();
   const { id } = router.query;
   const { isLoggedIn, userAddress } = useAppContext();
-  const { subscribeToAgent, isTransacting, getAgentInfo } = useSuiTransactions();
-  
+  const { subscribeToAgent, isTransacting, getAgentInfo } =
+    useSuiTransactions();
+
   const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
-  const [subscriptionData, setSubscriptionData] = useState<UserSubscription | null>(null);
-  const [realSubscriberCount, setRealSubscriberCount] = useState<number | null>(null);
+  const [subscriptionData, setSubscriptionData] =
+    useState<UserSubscription | null>(null);
+  const [realSubscriberCount, setRealSubscriberCount] = useState<number | null>(
+    null
+  );
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const [subscriptionResult, setSubscriptionResult] = useState<{
     transactionDigest?: string;
@@ -25,17 +32,20 @@ const AgentDetailPage: React.FC = () => {
   }>({});
 
   // Generate stable random data based on agent ID
-  const generateStableRandom = useCallback((seed: string, min: number, max: number, decimals: number = 2): number => {
-    let hash = 0;
-    for (let i = 0; i < seed.length; i++) {
-      const char = seed.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    const normalized = Math.abs(hash) / 2147483647; // Normalize to 0-1
-    const value = min + (normalized * (max - min));
-    return parseFloat(value.toFixed(decimals));
-  }, []);
+  const generateStableRandom = useCallback(
+    (seed: string, min: number, max: number, decimals: number = 2): number => {
+      let hash = 0;
+      for (let i = 0; i < seed.length; i++) {
+        const char = seed.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      const normalized = Math.abs(hash) / 2147483647; // Normalize to 0-1
+      const value = min + normalized * (max - min);
+      return parseFloat(value.toFixed(decimals));
+    },
+    []
+  );
 
   // Fetch agent from Firestore
   const { agent: firebaseAgent, loading } = useTradingAgent(
@@ -46,8 +56,11 @@ const AgentDetailPage: React.FC = () => {
   const agent: Agent | undefined = useMemo(() => {
     if (firebaseAgent) {
       // Use real subscriber count if available, otherwise use Firebase data
-      const subscriberCount = realSubscriberCount !== null ? realSubscriberCount : firebaseAgent.total_subscribers;
-      
+      const subscriberCount =
+        realSubscriberCount !== null
+          ? realSubscriberCount
+          : firebaseAgent.total_subscribers;
+
       return {
         id: firebaseAgent.agent_id,
         name: firebaseAgent.name,
@@ -65,10 +78,30 @@ const AgentDetailPage: React.FC = () => {
           firebaseAgent.is_active ? "Active" : "Inactive",
         ],
         performanceMetrics: {
-          totalReturn: generateStableRandom(firebaseAgent.agent_id + '_return', 10, 60, 2),
-          winRate: generateStableRandom(firebaseAgent.agent_id + '_winrate', 60, 100, 1),
-          sharpeRatio: generateStableRandom(firebaseAgent.agent_id + '_sharpe', 1, 3, 2),
-          maxDrawdown: generateStableRandom(firebaseAgent.agent_id + '_drawdown', 5, 20, 1),
+          totalReturn: generateStableRandom(
+            firebaseAgent.agent_id + "_return",
+            10,
+            60,
+            2
+          ),
+          winRate: generateStableRandom(
+            firebaseAgent.agent_id + "_winrate",
+            60,
+            100,
+            1
+          ),
+          sharpeRatio: generateStableRandom(
+            firebaseAgent.agent_id + "_sharpe",
+            1,
+            3,
+            2
+          ),
+          maxDrawdown: generateStableRandom(
+            firebaseAgent.agent_id + "_drawdown",
+            5,
+            20,
+            1
+          ),
         },
         createdAt:
           firebaseAgent.created_at instanceof Date
@@ -88,82 +121,92 @@ const AgentDetailPage: React.FC = () => {
   useEffect(() => {
     const checkSubscriptionStatus = async () => {
       if (!agent?.id || !isLoggedIn || !userAddress) {
-        console.log('🔍 Subscription check skipped:', {
+        console.log("🔍 Subscription check skipped:", {
           hasAgentId: !!agent?.id,
           isLoggedIn,
-          hasUserAddress: !!userAddress
+          hasUserAddress: !!userAddress,
         });
         return;
       }
-      
-      console.log('🔍 Checking subscription status from Firebase...', {
+
+      console.log("🔍 Checking subscription status from Firebase...", {
         agentId: agent.id,
         userAddress: userAddress,
       });
-      
+
       // Primary approach: Check Firebase
       try {
         const subscription = await checkUserSubscription(agent.id, userAddress);
-        console.log('🔍 Firebase subscription check result:', subscription);
-        
+        console.log("🔍 Firebase subscription check result:", subscription);
+
         if (subscription) {
           setIsSubscribed(true);
           setSubscriptionData(subscription);
-          console.log('✅ User is subscribed to this agent:', subscription);
-          
+          console.log("✅ User is subscribed to this agent:", subscription);
+
           // Store in localStorage for offline access
-          const localSubscriptions = localStorage.getItem('userSubscriptions') || '{}';
+          const localSubscriptions =
+            localStorage.getItem("userSubscriptions") || "{}";
           const subscriptions = JSON.parse(localSubscriptions);
           subscriptions[`${userAddress}_${agent.id}`] = true;
-          localStorage.setItem('userSubscriptions', JSON.stringify(subscriptions));
-          console.log('💾 Subscription status cached in localStorage');
+          localStorage.setItem(
+            "userSubscriptions",
+            JSON.stringify(subscriptions)
+          );
+          console.log("💾 Subscription status cached in localStorage");
         } else {
           setIsSubscribed(false);
           setSubscriptionData(null);
-          console.log('❌ User is not subscribed to this agent');
-          
+          console.log("❌ User is not subscribed to this agent");
+
           // Remove from localStorage if it exists
-          const localSubscriptions = localStorage.getItem('userSubscriptions');
+          const localSubscriptions = localStorage.getItem("userSubscriptions");
           if (localSubscriptions) {
             try {
               const subscriptions = JSON.parse(localSubscriptions);
               delete subscriptions[`${userAddress}_${agent.id}`];
-              localStorage.setItem('userSubscriptions', JSON.stringify(subscriptions));
-              console.log('🗑️ Removed stale subscription from localStorage');
+              localStorage.setItem(
+                "userSubscriptions",
+                JSON.stringify(subscriptions)
+              );
+              console.log("🗑️ Removed stale subscription from localStorage");
             } catch (error) {
-              console.error('Error cleaning localStorage:', error);
+              console.error("Error cleaning localStorage:", error);
             }
           }
         }
       } catch (error) {
-        console.error('❌ Firebase subscription check failed:', error);
-        console.error('Error details:', {
+        console.error("❌ Firebase subscription check failed:", error);
+        console.error("Error details:", {
           message: error instanceof Error ? error.message : String(error),
-          code: (error as any)?.code || 'unknown',
-          stack: error instanceof Error ? error.stack : undefined
+          code: (error as any)?.code || "unknown",
+          stack: error instanceof Error ? error.stack : undefined,
         });
-        
+
         // Fallback to localStorage only if Firebase fails
-        console.log('🔄 Falling back to localStorage...');
-        const localSubscriptions = localStorage.getItem('userSubscriptions');
+        console.log("🔄 Falling back to localStorage...");
+        const localSubscriptions = localStorage.getItem("userSubscriptions");
         if (localSubscriptions) {
           try {
             const subscriptions = JSON.parse(localSubscriptions);
             const key = `${userAddress}_${agent.id}`;
             if (subscriptions[key]) {
               setIsSubscribed(true);
-              console.log('✅ Subscription found in localStorage fallback');
+              console.log("✅ Subscription found in localStorage fallback");
             } else {
               setIsSubscribed(false);
-              console.log('❌ No subscription found in localStorage fallback');
+              console.log("❌ No subscription found in localStorage fallback");
             }
           } catch (parseError) {
-            console.error('Error parsing localStorage subscriptions:', parseError);
+            console.error(
+              "Error parsing localStorage subscriptions:",
+              parseError
+            );
             setIsSubscribed(false);
           }
         } else {
           setIsSubscribed(false);
-          console.log('❌ No localStorage data available');
+          console.log("❌ No localStorage data available");
         }
       }
     };
@@ -174,14 +217,17 @@ const AgentDetailPage: React.FC = () => {
   // Fetch real subscriber count from smart contract
   useEffect(() => {
     if (!agent?.id || !isLoggedIn) return;
-    
+
     const fetchRealSubscriberCount = async () => {
       try {
         const agentInfo = await getAgentInfo(agent.id);
         setRealSubscriberCount(agentInfo.totalSubscribers);
-        console.log(`Real subscriber count for agent ${agent.id}:`, agentInfo.totalSubscribers);
+        console.log(
+          `Real subscriber count for agent ${agent.id}:`,
+          agentInfo.totalSubscribers
+        );
       } catch (error) {
-        console.log('Could not fetch real subscriber count, using fallback');
+        console.log("Could not fetch real subscriber count, using fallback");
         // Keep using the fallback from Firebase/mock data
       }
     };
@@ -214,13 +260,13 @@ const AgentDetailPage: React.FC = () => {
 
   const handleSubscribe = async (): Promise<void> => {
     if (!agent?.id || !isLoggedIn) return;
-    
+
     try {
       const result = await subscribeToAgent({
         agentId: agent.id,
-        subscriptionDurationDays: 30
+        subscriptionDurationDays: 30,
       });
-      
+
       if (result.success) {
         setSubscriptionResult({
           transactionDigest: result.transactionDigest,
@@ -228,48 +274,75 @@ const AgentDetailPage: React.FC = () => {
         });
         setShowSuccessModal(true);
         setIsSubscribed(true);
-        
+
         // Refresh subscriber count after successful subscription
         try {
           const updatedAgentInfo = await getAgentInfo(agent.id);
           setRealSubscriberCount(updatedAgentInfo.totalSubscribers);
         } catch (error) {
-          console.log('Could not refresh subscriber count');
+          console.log("Could not refresh subscriber count");
         }
-        
+
         // Update subscription status after successful blockchain transaction
         if (userAddress) {
-          console.log('🔄 Updating subscription status after successful transaction...');
-          
+          console.log(
+            "🔄 Updating subscription status after successful transaction..."
+          );
+
           // Store in localStorage immediately for instant UI update
-          const localSubscriptions = localStorage.getItem('userSubscriptions') || '{}';
+          const localSubscriptions =
+            localStorage.getItem("userSubscriptions") || "{}";
           const subscriptions = JSON.parse(localSubscriptions);
           subscriptions[`${userAddress}_${agent.id}`] = true;
-          localStorage.setItem('userSubscriptions', JSON.stringify(subscriptions));
-          console.log('💾 Subscription stored in localStorage');
-          
+          localStorage.setItem(
+            "userSubscriptions",
+            JSON.stringify(subscriptions)
+          );
+          console.log("💾 Subscription stored in localStorage");
+
           // Try to verify from Firebase (this might fail initially if the collection doesn't exist)
           try {
-            console.log('🔍 Attempting to verify subscription from Firebase...');
-            const subscription = await checkUserSubscription(agent.id, userAddress);
+            console.log(
+              "🔍 Attempting to verify subscription from Firebase..."
+            );
+            const subscription = await checkUserSubscription(
+              agent.id,
+              userAddress
+            );
             if (subscription) {
               setSubscriptionData(subscription);
-              console.log('✅ Subscription verified from Firebase:', subscription);
+              console.log(
+                "✅ Subscription verified from Firebase:",
+                subscription
+              );
             } else {
-              console.log('⚠️ Subscription not yet reflected in Firebase (expected for new collection)');
+              console.log(
+                "⚠️ Subscription not yet reflected in Firebase (expected for new collection)"
+              );
             }
           } catch (error) {
-            console.error('❌ Could not verify subscription from Firebase:', error);
-            console.log('💡 This is normal if the user_subscriptions collection doesn\'t exist yet');
-            console.log('💡 To fix: Create the collection in Firestore with proper security rules');
+            console.error(
+              "❌ Could not verify subscription from Firebase:",
+              error
+            );
+            console.log(
+              "💡 This is normal if the user_subscriptions collection doesn't exist yet"
+            );
+            console.log(
+              "💡 To fix: Create the collection in Firestore with proper security rules"
+            );
           }
         }
       } else {
         alert(`Failed to subscribe: ${result.error}`);
       }
     } catch (error) {
-      console.error('Subscription error:', error);
-      alert(`Subscription failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Subscription error:", error);
+      alert(
+        `Subscription failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   };
 
@@ -331,14 +404,25 @@ const AgentDetailPage: React.FC = () => {
                   rel="noopener noreferrer"
                   className="inline-flex items-center px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-sm rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
                 >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  <svg
+                    className="w-4 h-4 mr-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
                   </svg>
                   View on SuiScan
                 </a>
               </div>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Created by {agent.creator.slice(0, 6)}...{agent.creator.slice(-4)}
+                Created by {agent.creator.slice(0, 6)}...
+                {agent.creator.slice(-4)}
               </p>
               <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
                 {agent.description}
@@ -434,7 +518,7 @@ const AgentDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           {/* PnL Chart */}
           <div className="mt-8">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
@@ -447,31 +531,37 @@ const AgentDetailPage: React.FC = () => {
                     const points = 30;
                     let value = 100;
                     const data = [];
-                    
+
                     for (let i = 0; i < points; i++) {
-                      const change = (generateStableRandom(agent.id + '_pnl_' + i, -4.5, 1, 2)); // Slight upward bias
+                      const change = generateStableRandom(
+                        agent.id + "_pnl_" + i,
+                        -4.5,
+                        1,
+                        2
+                      ); // Slight upward bias
                       value = Math.max(80, Math.min(150, value + change));
                       data.push(value);
                     }
                     return data;
                   };
-                  
+
                   const pnlData = generatePnLData();
                   const maxValue = Math.max(...pnlData);
                   const minValue = Math.min(...pnlData);
                   const range = maxValue - minValue;
-                  
+
                   return pnlData.map((value, index) => {
-                    const height = range > 0 ? ((value - minValue) / range) * 200 + 20 : 120;
+                    const height =
+                      range > 0 ? ((value - minValue) / range) * 200 + 20 : 120;
                     const isPositive = value >= 100;
-                    
+
                     return (
                       <div
                         key={index}
                         className={`w-full max-w-[8px] rounded-t-sm transition-all duration-300 hover:opacity-80 ${
-                          isPositive 
-                            ? 'bg-green-500 dark:bg-green-400' 
-                            : 'bg-red-500 dark:bg-red-400'
+                          isPositive
+                            ? "bg-green-500 dark:bg-green-400"
+                            : "bg-red-500 dark:bg-red-400"
                         }`}
                         style={{ height: `${height}px` }}
                         title={`Day ${index + 1}: ${value.toFixed(1)}%`}
@@ -480,7 +570,7 @@ const AgentDetailPage: React.FC = () => {
                   });
                 })()}
               </div>
-              
+
               {/* Chart Legend */}
               <div className="flex justify-between items-center mt-4 text-sm text-gray-600 dark:text-gray-400">
                 <div className="flex items-center space-x-4">
@@ -493,9 +583,7 @@ const AgentDetailPage: React.FC = () => {
                     <span>Loss</span>
                   </div>
                 </div>
-                <div className="text-xs">
-                  Hover over bars for details
-                </div>
+                <div className="text-xs">Hover over bars for details</div>
               </div>
             </div>
           </div>
@@ -511,60 +599,98 @@ const AgentDetailPage: React.FC = () => {
               const strategies = [
                 {
                   name: "Arbitrage Trading",
-                  description: "Exploits price differences across multiple DEXes on Sui network. Automatically identifies and captures arbitrage opportunities between Cetus, Turbos, and other major exchanges.",
-                  indicators: ["Price spread analysis", "Liquidity monitoring", "Gas cost optimization"],
-                  dexes: ["Cetus Protocol", "Turbos Finance", "BlueMove", "Aftermath Finance"],
-                  tokenPairs: ["SUI/USDC", "SUI/USDT", "WETH/USDC", "WBTC/USDC"],
+                  description:
+                    "Exploits price differences across multiple DEXes on Sui network. Automatically identifies and captures arbitrage opportunities between Cetus, Turbos, and other major exchanges.",
+                  indicators: [
+                    "Price spread analysis",
+                    "Liquidity monitoring",
+                    "Gas cost optimization",
+                  ],
+                  dexes: [
+                    "Cetus Protocol",
+                    "Turbos Finance",
+                    "BlueMove",
+                    "Aftermath Finance",
+                  ],
+                  tokenPairs: [
+                    "SUI/USDC",
+                    "SUI/USDT",
+                    "WETH/USDC",
+                    "WBTC/USDC",
+                  ],
                   executionFreq: "1-5 minutes",
                   minTradeSize: "50 SUI",
-                  maxSlippage: "0.5%"
+                  maxSlippage: "0.5%",
                 },
                 {
-                  name: "Momentum Trading", 
-                  description: "Follows trending movements in SUI and ecosystem tokens. Uses technical indicators to identify and ride strong price trends while managing risk through stop-losses.",
-                  indicators: ["RSI (30/70)", "Moving Average (9/21)", "Volume analysis"],
+                  name: "Momentum Trading",
+                  description:
+                    "Follows trending movements in SUI and ecosystem tokens. Uses technical indicators to identify and ride strong price trends while managing risk through stop-losses.",
+                  indicators: [
+                    "RSI (30/70)",
+                    "Moving Average (9/21)",
+                    "Volume analysis",
+                  ],
                   dexes: ["Cetus Protocol", "Turbos Finance", "Kriya DEX"],
                   tokenPairs: ["SUI/USDC", "CETUS/SUI", "TURBOS/SUI"],
                   executionFreq: "15 minutes",
                   minTradeSize: "100 SUI",
-                  maxSlippage: "2%"
+                  maxSlippage: "2%",
                 },
                 {
                   name: "Mean Reversion",
-                  description: "Identifies oversold/overbought conditions in Sui DeFi tokens. Buys during dips and sells during peaks based on statistical analysis of price movements.",
-                  indicators: ["Bollinger Bands", "RSI divergence", "Support/Resistance levels"],
+                  description:
+                    "Identifies oversold/overbought conditions in Sui DeFi tokens. Buys during dips and sells during peaks based on statistical analysis of price movements.",
+                  indicators: [
+                    "Bollinger Bands",
+                    "RSI divergence",
+                    "Support/Resistance levels",
+                  ],
                   dexes: ["Cetus Protocol", "SuiSwap", "FlowX Finance"],
                   tokenPairs: ["SUI/USDC", "SUI/WETH", "DEEP/SUI"],
                   executionFreq: "1 hour",
                   minTradeSize: "75 SUI",
-                  maxSlippage: "1.5%"
+                  maxSlippage: "1.5%",
                 },
                 {
                   name: "Grid Trading",
-                  description: "Places multiple buy and sell orders at predetermined price levels. Profits from market volatility while maintaining a balanced position in SUI ecosystem tokens.",
-                  indicators: ["Grid spacing optimization", "Dynamic rebalancing", "Market volatility analysis"],
+                  description:
+                    "Places multiple buy and sell orders at predetermined price levels. Profits from market volatility while maintaining a balanced position in SUI ecosystem tokens.",
+                  indicators: [
+                    "Grid spacing optimization",
+                    "Dynamic rebalancing",
+                    "Market volatility analysis",
+                  ],
                   dexes: ["Cetus Protocol", "Turbos Finance", "Kai Finance"],
                   tokenPairs: ["SUI/USDC", "SUI/USDT", "USDC/USDT"],
                   executionFreq: "5 minutes",
                   minTradeSize: "200 SUI",
-                  maxSlippage: "1%"
+                  maxSlippage: "1%",
                 },
                 {
                   name: "Dollar Cost Averaging",
-                  description: "Systematically accumulates positions in high-quality Sui ecosystem tokens. Reduces timing risk through regular, automated purchases regardless of market conditions.",
-                  indicators: ["Market sentiment analysis", "Fundamental scoring", "Position sizing algorithms"],
+                  description:
+                    "Systematically accumulates positions in high-quality Sui ecosystem tokens. Reduces timing risk through regular, automated purchases regardless of market conditions.",
+                  indicators: [
+                    "Market sentiment analysis",
+                    "Fundamental scoring",
+                    "Position sizing algorithms",
+                  ],
                   dexes: ["Cetus Protocol", "Aftermath Finance", "BlueMove"],
                   tokenPairs: ["SUI/USDC", "WETH/USDC", "BLUE/SUI"],
                   executionFreq: "4 hours",
                   minTradeSize: "50 SUI",
-                  maxSlippage: "2%"
-                }
+                  maxSlippage: "2%",
+                },
               ];
-              
+
               // Generate a consistent strategy based on agent ID
-              const agentIdHash = agent.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-              const selectedStrategy = strategies[agentIdHash % strategies.length];
-              
+              const agentIdHash = agent.id
+                .split("")
+                .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+              const selectedStrategy =
+                strategies[agentIdHash % strategies.length];
+
               return (
                 <div>
                   <div className="mb-6">
@@ -631,9 +757,18 @@ const AgentDetailPage: React.FC = () => {
                         ⚙️ Execution Parameters
                       </h4>
                       <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                        <div><span className="font-medium">Frequency:</span> {selectedStrategy.executionFreq}</div>
-                        <div><span className="font-medium">Min Trade:</span> {selectedStrategy.minTradeSize}</div>
-                        <div><span className="font-medium">Max Slippage:</span> {selectedStrategy.maxSlippage}</div>
+                        <div>
+                          <span className="font-medium">Frequency:</span>{" "}
+                          {selectedStrategy.executionFreq}
+                        </div>
+                        <div>
+                          <span className="font-medium">Min Trade:</span>{" "}
+                          {selectedStrategy.minTradeSize}
+                        </div>
+                        <div>
+                          <span className="font-medium">Max Slippage:</span>{" "}
+                          {selectedStrategy.maxSlippage}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -641,18 +776,29 @@ const AgentDetailPage: React.FC = () => {
               );
             })()}
           </div>
-          
+
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-start space-x-3">
               <div className="text-blue-600 dark:text-blue-400 mt-0.5">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </div>
               <div>
-                <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">Nautilus TEE Protected</h4>
+                <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  Nautilus TEE Protected
+                </h4>
                 <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                  This agent executes trades securely within a Trusted Execution Environment with cryptographic attestation.
+                  This agent executes trades securely within a Trusted Execution
+                  Environment with cryptographic attestation.
                 </p>
               </div>
             </div>
@@ -664,7 +810,7 @@ const AgentDetailPage: React.FC = () => {
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={handleSuccessModalClose}
-        title="🎉 Subscription Successful!"
+        title="Subscription Successful!"
         message={`You have successfully subscribed to "${subscriptionResult.agentName}". You can now access this agent's trading signals and deposit funds for automated trading.`}
         transactionHash={subscriptionResult.transactionDigest}
         agentName={subscriptionResult.agentName}

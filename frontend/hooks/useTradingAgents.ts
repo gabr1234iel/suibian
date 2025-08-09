@@ -8,6 +8,8 @@ import {
   getPopularTradingAgents,
   getRecentTradingAgents,
   searchTradingAgentsByName,
+  UserSubscription,
+  getUserSubscriptions,
 } from "../api/marketplaceApi";
 import { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 
@@ -261,4 +263,76 @@ export const useRecentTradingAgents = (limitCount: number = 10) => {
   }, [fetchRecentAgents]);
 
   return { agents, loading, error, refetch: fetchRecentAgents };
+};
+
+/**
+ * Hook for fetching trading agents a user is subscribed to.
+ * It first fetches the user's subscription records and then retrieves
+ * the full details for each subscribed agent.
+ *
+ * @param userAddress The wallet address of the user.
+ * @returns An object containing the subscribed agents, loading state, error, and a refetch function.
+ */
+export const useUserSubscribedAgents = (userAddress: string | null) => {
+  // State for storing the final list of agent objects
+  const [agents, setAgents] = useState<TradingAgent[]>([]);
+  // State for loading status
+  const [loading, setLoading] = useState(false);
+  // State for any potential errors
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Fetches the user's subscriptions and then resolves the agent details for each.
+   */
+  const fetchSubscribedAgents = useCallback(async () => {
+    // Exit if no user address is provided, and clear previous results
+    if (!userAddress) {
+      setAgents([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1. Fetch all subscription documents for the given user address
+      const subscriptions: UserSubscription[] =
+        await getUserSubscriptions(userAddress);
+
+      if (subscriptions.length > 0) {
+        // 2. Extract the agent_id from each subscription
+        const agentIds = subscriptions.map((sub) => sub.agent_id);
+
+        // 3. Fetch the full TradingAgent object for each agent_id concurrently
+        const agentPromises = agentIds.map((id) =>
+          getTradingAgentByAgentId(id)
+        );
+        const resolvedAgents = await Promise.all(agentPromises);
+
+        // 4. Filter out any null results (in case an agent was deleted) and update state
+        setAgents(
+          resolvedAgents.filter(
+            (agent): agent is TradingAgent => agent !== null
+          )
+        );
+      } else {
+        // If the user has no subscriptions, set agents to an empty array
+        setAgents([]);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch subscribed agents"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [userAddress]);
+
+  // Effect to automatically trigger the fetch when the component mounts or userAddress changes
+  useEffect(() => {
+    fetchSubscribedAgents();
+  }, [fetchSubscribedAgents]);
+
+  // Return the state and a manual refetch function
+  return { agents, loading, error, refetch: fetchSubscribedAgents };
 };

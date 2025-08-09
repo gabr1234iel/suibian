@@ -5,7 +5,6 @@ import { Agent } from "../types";
 import { useTradingAgents } from "../hooks/useTradingAgents";
 import { TradingAgent } from "../api/marketplaceApi";
 import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 
 // Helper for active button styles
 const getButtonClasses = (isActive: boolean) =>
@@ -112,9 +111,12 @@ const SearchForAgentPage: React.FC = () => {
   }, [allAgents, activeFilter, searchTerm, sortBy]);
 
   return (
-    <div className="min-h-screen bg-dark-900 text-white mt-5">
+    <div className="min-h-screen bg-dark-900 text-white mt-5 relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[32rem] h-[32rem] bg-green-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-green-500/5 pointer-events-none" />
       <Header />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 relative z-10">
         {/* Header and Filters */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
           {/* Left: Main Filters */}
@@ -240,7 +242,6 @@ const SearchForAgentPage: React.FC = () => {
             )}
           </>
         ) : null}
-        <Footer />
       </main>
     </div>
   );

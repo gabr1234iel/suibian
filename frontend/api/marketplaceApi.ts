@@ -273,17 +273,17 @@ export interface UserSubscription {
  * Check if a user is subscribed to a specific agent
  */
 export const checkUserSubscription = async (
-  agentId: string, 
+  agentId: string,
   userAddress: string
 ): Promise<UserSubscription | null> => {
-  console.log('🔍 checkUserSubscription called with:', {
+  console.log("🔍 checkUserSubscription called with:", {
     agentId,
     userAddress,
-    collection: USER_SUBSCRIPTIONS_COLLECTION
+    collection: USER_SUBSCRIPTIONS_COLLECTION,
   });
 
   try {
-    console.log('🔍 Building Firestore query...');
+    console.log("🔍 Building Firestore query...");
     const q = query(
       collection(db, USER_SUBSCRIPTIONS_COLLECTION),
       where("agent_id", "==", agentId),
@@ -291,29 +291,29 @@ export const checkUserSubscription = async (
       where("is_active", "==", true)
     );
 
-    console.log('🔍 Executing Firestore query...');
+    console.log("🔍 Executing Firestore query...");
     const querySnapshot = await getDocs(q);
-    
-    console.log('🔍 Query result:', {
+
+    console.log("🔍 Query result:", {
       isEmpty: querySnapshot.empty,
       size: querySnapshot.size,
-      docs: querySnapshot.docs.length
+      docs: querySnapshot.docs.length,
     });
-    
+
     if (querySnapshot.empty) {
-      console.log('❌ No subscription documents found');
+      console.log("❌ No subscription documents found");
       return null;
     }
 
     // Return the first active subscription
     const doc = querySnapshot.docs[0];
     const data = doc.data();
-    
-    console.log('✅ Subscription document found:', {
+
+    console.log("✅ Subscription document found:", {
       docId: doc.id,
-      data: data
+      data: data,
     });
-    
+
     const subscription = {
       subscription_id: doc.id,
       agent_id: data.agent_id,
@@ -324,16 +324,16 @@ export const checkUserSubscription = async (
       tx_digest: data.tx_digest,
     } as UserSubscription;
 
-    console.log('✅ Returning subscription object:', subscription);
+    console.log("✅ Returning subscription object:", subscription);
     return subscription;
   } catch (error) {
     console.error("❌ Error checking user subscription:", error);
     console.error("Error details:", {
       message: error instanceof Error ? error.message : String(error),
-      code: (error as any)?.code || 'unknown',
-      stack: error instanceof Error ? error.stack : undefined
+      code: (error as any)?.code || "unknown",
+      stack: error instanceof Error ? error.stack : undefined,
     });
-    
+
     // Re-throw the error so the calling code can handle it properly
     throw error;
   }
@@ -348,13 +348,13 @@ export const getUserSubscriptions = async (
   try {
     const q = query(
       collection(db, USER_SUBSCRIPTIONS_COLLECTION),
-      where("subscriber_address", "==", userAddress),
+      where("subscriber", "==", userAddress),
       orderBy("subscribed_at", "desc")
     );
 
     const querySnapshot = await getDocs(q);
-    
-    return querySnapshot.docs.map(doc => {
+
+    return querySnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         subscription_id: doc.id,

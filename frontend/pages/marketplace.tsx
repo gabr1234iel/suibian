@@ -6,6 +6,7 @@ import { TradingAgent } from "../api/marketplaceApi";
 import Header from "@/components/Header";
 import ReviewsCarousel from "@/components/ReviewsCarousel";
 import Link from "next/dist/client/link";
+import router from "next/router";
 
 const MarketplacePage: React.FC = () => {
   // Get trading agents from Firebase
@@ -69,10 +70,10 @@ const MarketplacePage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-6 py-8 pt-24">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
+          <h1 className="text-4xl font-bold text-white mb-2">
             Trading Strategy Marketplace
           </h1>
-          <p className="text-sm">
+          <p className="text-l">
             Discover and subscribe to automated trading strategies from expert
             creators
           </p>
@@ -112,7 +113,7 @@ const MarketplacePage: React.FC = () => {
           <div className="flex flex-col md:flex-row gap-6 w-full">
             {/* Left Table: 1-5 */}
             <div className="flex-1">
-              <div className="bg-glass-dark backdrop-blur-xl border border-white/10 rounded-xl p-6 shadow-lg">
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-6 shadow-lg">
                 <table className="min-w-full text-left">
                   <thead>
                     <tr>
@@ -151,7 +152,7 @@ const MarketplacePage: React.FC = () => {
             </div>
             {/* Right Table: 6-10 (hidden on mobile) */}
             <div className="flex-1 hidden md:block">
-              <div className="bg-glass-dark backdrop-blur-xl border border-white/10 rounded-xl p-6 shadow-lg">
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-6 shadow-lg">
                 <table className="min-w-full text-left">
                   <thead>
                     <tr>
@@ -175,9 +176,7 @@ const MarketplacePage: React.FC = () => {
                         <tr
                           key={agent.id}
                           className="border-b border-white/10 last:border-0 cursor-pointer hover:bg-white/5 transition"
-                          onClick={() => {
-                            window.location.href = `/agents/${agent.id}`;
-                          }}
+                          onClick={() => router.push(`/agents/${agent.id}`)}
                         >
                           <td className="px-3 py-2">{idx + 6}</td>
                           <td className="px-3 py-2">{agent.name}</td>
@@ -231,14 +230,15 @@ const MarketplacePage: React.FC = () => {
                   .map((agent) => (
                     <div
                       key={agent.id}
-                      className="min-w-[320px] max-w-xs w-full flex-shrink-0"
+                      className="min-w-[320px] max-w-xs w-full flex-shrink-0 "
                       style={{
                         width: "100%",
                         maxWidth: "350px",
                         minWidth: "260px",
                       }}
                     >
-                      <div className="bg-glass-dark backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-lg h-full flex flex-col md:p-6">
+                      {/* The change is in the line below */}
+                      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-lg h-full flex flex-col md:p-6">
                         <div className="flex items-center mb-3">
                           <div className="flex-1">
                             <h3 className="text-lg md:text-xl font-bold text-white truncate">
