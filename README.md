@@ -34,7 +34,7 @@ SuiBian is a decentralised platform for creating, deploying, and subscribing to 
 
 ```
 .
-├── avs/                  # On-chain Move smart contracts and scripts
+├── avs/                  # Directory for Actively Validated Services (AVS)
 │   └── avs_on_chain/
 ├── backend/              # Off-chain backend services and marketplace logic
 ├── frontend/             # Next.js frontend (React, TailwindCSS)
@@ -111,7 +111,7 @@ The app will be available at [http://localhost:3000](http://localhost:3000).
 - Allows users to subscribe to agents, enforcing fee payments and access control.
 - Tracks subscriber lists and agent performance.
 
-#### Slashing & Insurance
+#### Actively Validated Services inspired by Ethereum EigenLayer
 
 - Implements validator slashing for misbehavior.
 - Maintains an insurance fund to reward correct validators and compensate for slashing events.
@@ -283,36 +283,50 @@ All trading endpoints return cryptographically signed responses:
 
 ### Marketplace
 
-- **Package ID:** `0x705da1cf5e87858f32787d79745381f2f523c8006794ef209169c7472afb09fa`
-- **Subscription Manager ID:** `0xc212a5ecf3febcc7e534e2f4cbcb722388bd7dd5974c78c12142612b63cae12a`
-
-- **Package ID:** `0xfd6a00339d853aae2473bab92a11d2db322604e33339bad08e8e52f97470fa9d`
-- **Subscription Manager ID:** `0x83e0dd1f1df2c174f353a3b0cd0fc03141690f3f2ebd7bfbbea409f8db409454`
-- **DEPLOYER_CAP:** `0x5bbdc2609e23cd3e82f07d9a0c0be2191e1343728d8234d3f55da4d8d09e679a`
+- **Package ID:** [`0x705da1cf5e87858f32787d79745381f2f523c8006794ef209169c7472afb09fa`](https://suiscan.xyz/devnet/object/0x705da1cf5e87858f32787d79745381f2f523c8006794ef209169c7472afb09fa)
+- **Subscription Manager ID:** [`0xc212a5ecf3febcc7e534e2f4cbcb722388bd7dd5974c78c12142612b63cae12a`](https://suiscan.xyz/devnet/object/0xc212a5ecf3febcc7e534e2f4cbcb722388bd7dd5974c78c12142612b63cae12a)
+- **DEPLOYER_CAP:** [`0x5bbdc2609e23cd3e82f07d9a0c0be2191e1343728d8234d3f55da4d8d09e679a`](https://suiscan.xyz/devnet/object/0x5bbdc2609e23cd3e82f07d9a0c0be2191e1343728d8234d3f55da4d8d09e679a)
 
 ### Nautilus Trading Agent (TEE)
 
 **Enclave Framework:**
-- **Package ID:** `0x9a9061d46c3fd8a08df5f31c09ef32867d8f4f51dac7cf23b36381fcecdcef82`
+- **Package ID:** [`0x9a9061d46c3fd8a08df5f31c09ef32867d8f4f51dac7cf23b36381fcecdcef82`](https://suiscan.xyz/devnet/object/0x9a9061d46c3fd8a08df5f31c09ef32867d8f4f51dac7cf23b36381fcecdcef82)
 - **Module:** `enclave::enclave`
 
 **Trading Agent:**
-- **Package ID:** `0xb66ee07ed5037f71b209a9d068a84d73520bd92837924e065f9d02b537950eab`  
+- **Package ID:** [`0xb66ee07ed5037f71b209a9d068a84d73520bd92837924e065f9d02b537950eab`](https://suiscan.xyz/devnet/object/0xb66ee07ed5037f71b209a9d068a84d73520bd92837924e065f9d02b537950eab)
 - **Module:** `app::trading_agent`
-- **Cap Object:** `0xfb58b7ea48ac298c3669116a49f692dd0d482bbdad4485518af065c601363b6e`
-- **Enclave Config:** `0x7afdb87c0421b3e44b18300c64ee322349705ca9815461f41fc06933c536ae5d`
-- **Enclave Instance:** `0x2287e4a6fa3bd8b33ca734dc78ced5a5a2958e127b1bc4b0816b9bee1b8d5a97`
+- **Cap Object:** [`0xfb58b7ea48ac298c3669116a49f692dd0d482bbdad4485518af065c601363b6e`](https://suiscan.xyz/devnet/object/0xfb58b7ea48ac298c3669116a49f692dd0d482bbdad4485518af065c601363b6e)
+- **Enclave Config:** [`0x7afdb87c0421b3e44b18300c64ee322349705ca9815461f41fc06933c536ae5d`](https://suiscan.xyz/devnet/object/0x7afdb87c0421b3e44b18300c64ee322349705ca9815461f41fc06933c536ae5d)
+- **Enclave Instance:** [`0x2287e4a6fa3bd8b33ca734dc78ced5a5a2958e127b1bc4b0816b9bee1b8d5a97`](https://suiscan.xyz/devnet/object/0x2287e4a6fa3bd8b33ca734dc78ced5a5a2958e127b1bc4b0816b9bee1b8d5a97)
+
+### Dex
+
+- **Package ID:** [`0x58148fa87d972dd4f2c6110dce24d2320486d7cf56143024c3fae7e3c968961f`](https://suiscan.xyz/devnet/object/0x58148fa87d972dd4f2c6110dce24d2320486d7cf56143024c3fae7e3c968961f)
+- **Pool ID:** [`0xa6a1b60fe6d3c94dcd7533002c46ed122140ade275e8fca1be835a7bdb525aa0`](https://suiscan.xyz/devnet/object/0xa6a1b60fe6d3c94dcd7533002c46ed122140ade275e8fca1be835a7bdb525aa0)
+- **Admin Cap ID:** [`0x6f0d09a193b2ecc8a873f753aa56fce4629e72eb66ae0c47df553767ff788f18`](https://suiscan.xyz/devnet/object/0x6f0d09a193b2ecc8a873f753aa56fce4629e72eb66ae0c47df553767ff788f18)
+- **Treasury Cap ID:** [`0xd058176e995cd09c255a07ef0b6a63ba812f1eb72eeb8eabd991e885d2e9cf0e`](https://suiscan.xyz/devnet/object/0xd058176e995cd09c255a07ef0b6a63ba812f1eb72eeb8eabd991e885d2e9cf0e)
+
+### Actively Validated Services (AVS)
+
+- **Package ID:** [`0xc61c053b1df7e80fd60e04896609d5631f93616d894411d22f5ee37cba50e981`](https://suiscan.xyz/devnet/object/0xc61c053b1df7e80fd60e04896609d5631f93616d894411d22f5ee37cba50e981)
+- **Registry ID:** [`0x523aa5391590c7eb28c87c2d4112d2bd40262467c37d04a523ba6cfbb0cf6e9f`](https://suiscan.xyz/devnet/object/0x523aa5391590c7eb28c87c2d4112d2bd40262467c37d04a523ba6cfbb0cf6e9f)
+- **Slashing Manager ID:** [`0x148da6bf784488077b97fb90f5e28a45f548d55759076f59487e73c3a6316fb0`](https://suiscan.xyz/devnet/object/0x148da6bf784488077b97fb90f5e28a45f548d55759076f59487e73c3a6316fb0)
+
+**Key Modules:**
+- `validator_registry::register_validator` - Register validators with stake
+- `validator_registry::deactivate_validator` - Deactivate validator status
+- `validation_task::create_validation_task` - Create validation tasks for trading transactions
+- `validation_task::submit_vote_with_proof` - Submit votes with cryptographic proofs
+- `consensus::check_consensus` - Check consensus on validation tasks
+- `slashing::execute_slashing` - Execute slashing for incorrect validators
+- `slashing::initialize_insurance_fund` - Initialize insurance fund for validator rewards
+
+
 
 **Live Endpoints:**
 - **Base URL:** `http://47.129.86.96:3000`
 - **Status:** ✅ Active (24/7 global access)
-
-### Dex
-
-- **PACKAGE_ID:** `0x58148fa87d972dd4f2c6110dce24d2320486d7cf56143024c3fae7e3c968961f`
-- **POOL_ID:** `0xa6a1b60fe6d3c94dcd7533002c46ed122140ade275e8fca1be835a7bdb525aa0`
-- **ADMIN_CAP_ID:** `0x6f0d09a193b2ecc8a873f753aa56fce4629e72eb66ae0c47df553767ff788f18`
-- **TREASURY_CAP_ID:** `0xd058176e995cd09c255a07ef0b6a63ba812f1eb72eeb8eabd991e885d2e9cf0e`
 
 ---
 
