@@ -12,8 +12,10 @@ const jetbrainsMono = JetBrains_Mono({
 
 function MyApp({ Component, pageProps }: AppProps) {
   useEffect(() => {
-    // Force dark mode by adding the class to html element
-    document.documentElement.classList.add("dark");
+    // Force dark mode by adding the class to html element - only on client side
+    if (typeof window !== 'undefined') {
+      document.documentElement.classList.add("dark");
+    }
   }, []);
 
   return (

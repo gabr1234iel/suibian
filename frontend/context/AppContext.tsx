@@ -52,6 +52,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [userGoogleId, setUserGoogleId] = useState<string | null>(null);
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
+  // Track if component has mounted to prevent hydration mismatches
+  const [mounted, setMounted] = useState(false);
   // zkLogin states for blockchain transactions
   const [jwt, setJwt] = useState<string | null>(null);
   const [userSalt, setUserSalt] = useState<string | null>(null);
@@ -70,23 +72,32 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     maxEpoch
   );
 
+  // Track when component has mounted to prevent hydration issues
   useEffect(() => {
-    // Load theme from localStorage on component mount
-    const savedTheme = localStorage.getItem("theme") as Theme;
-    if (savedTheme) {
-      setTheme(savedTheme);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // Load theme from localStorage on component mount - only on client side
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem("theme") as Theme;
+      if (savedTheme) {
+        setTheme(savedTheme);
+      }
     }
   }, []);
 
   useEffect(() => {
-    // Apply theme to document root
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
+    // Apply theme to document root - only on client side
+    if (typeof window !== 'undefined') {
+      if (theme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+      // Save theme to localStorage
+      localStorage.setItem("theme", theme);
     }
-    // Save theme to localStorage
-    localStorage.setItem("theme", theme);
   }, [theme]);
 
   // Initialize zkLogin session (generate ephemeral keypair) - called when user wants to login
@@ -175,12 +186,14 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   // Simplified user data management (removed Firebase dependency)
   const saveUserToLocalStorage = async (userData: UserData): Promise<void> => {
     try {
-      console.log("Saving user data to localStorage:", userData.google_id);
-      localStorage.setItem(
-        `user_${userData.google_id}`,
-        JSON.stringify(userData)
-      );
-      console.log("User data saved to localStorage successfully");
+      if (typeof window !== 'undefined') {
+        console.log("Saving user data to localStorage:", userData.google_id);
+        localStorage.setItem(
+          `user_${userData.google_id}`,
+          JSON.stringify(userData)
+        );
+        console.log("User data saved to localStorage successfully");
+      }
     } catch (error: any) {
       console.error("Error saving user data to localStorage:", error);
     }
@@ -190,11 +203,13 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     googleId: string
   ): Promise<UserData | null> => {
     try {
-      console.log("Getting user from localStorage with Google ID:", googleId);
-      const userData = localStorage.getItem(`user_${googleId}`);
-      if (userData) {
-        console.log("User data found in localStorage");
-        return JSON.parse(userData) as UserData;
+      if (typeof window !== 'undefined') {
+        console.log("Getting user from localStorage with Google ID:", googleId);
+        const userData = localStorage.getItem(`user_${googleId}`);
+        if (userData) {
+          console.log("User data found in localStorage");
+          return JSON.parse(userData) as UserData;
+        }
       }
       console.log("No user data found in localStorage");
       return null;
@@ -572,6 +587,7 @@ This happens when the app generates new security keys but you're using an old lo
     balance,
     isBalanceLoading,
     isLoadingUser,
+    mounted,
     nonce,
     jwt,
     randomness,
