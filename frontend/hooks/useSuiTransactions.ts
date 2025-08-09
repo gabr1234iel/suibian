@@ -10,7 +10,7 @@ const SUBSCRIPTION_MANAGER_ID = "0x83e0dd1f1df2c174f353a3b0cd0fc03141690f3f2ebd7
 const AGENT_REGISTRY_MODULE = "agent_registry";
 const SUBSCRIPTION_MANAGER_MODULE = "subscription_manager";
 
-// Mock TEE data (replace with actual TEE public key and wallet in production)
+// Mock TEE data for agent creation (replace with actual TEE public key in production)
 const MOCK_TEE_PUBLIC_KEY = new Array(32).fill(1); // 32-byte mock public key
 const MOCK_TEE_WALLET_ADDRESS = '0xa125b591b0feb5f6f1843b54422831c61a9427531c7c8aab91d6053048a5b092';
 
@@ -32,6 +32,18 @@ interface TransactionResult {
   transactionDigest?: string;
   result?: any;
   error?: string;
+}
+
+interface DepositTradingFundsParams {
+  agentId: string;
+  amount: number; // in SUI
+}
+
+interface DepositResult extends TransactionResult {
+  depositAmount?: number;
+  agentWalletAddress?: string;
+  userTotalDeposited?: number;
+  agentTotalDeposited?: number;
 }
 
 export const useSuiTransactions = () => {
@@ -283,22 +295,6 @@ export const useSuiTransactions = () => {
     }
   }, [initializeTransactionManager, createSubscribeToAgentTransaction, refreshBalance, zkProof]);
 
-  // Deposit trading funds (future function)
-  const depositTradingFunds = useCallback(async (agentId: string, amount: number): Promise<TransactionResult> => {
-    setIsTransacting(true);
-    try {
-      // TODO: Implement deposit logic
-      throw new Error('Deposit functionality not yet implemented');
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    } finally {
-      setIsTransacting(false);
-    }
-  }, []);
-
   // Check if ready for transactions (now includes cached session data)
   const isReady = useCallback((): boolean => {
     return !!(isLoggedIn && jwt && userSalt && maxEpoch && userGoogleId && ephemeralKeypair && zkProof && randomness);
@@ -312,8 +308,35 @@ export const useSuiTransactions = () => {
   // Get agent information including subscriber count
   const getAgentInfo = useCallback(async (agentId: string): Promise<any> => {
     try {
+      // First check if this is a localStorage agent
+      const localAgents = JSON.parse(localStorage.getItem('localAgents') || '[]');
+      const localAgent = localAgents.find((agent: any) => agent.agent_id === agentId);
+      
+      if (localAgent) {
+        console.log('📱 Found agent in localStorage, returning local data');
+        return {
+          name: localAgent.name,
+          description: localAgent.description || '',
+          subscriptionFee: parseInt(localAgent.subscription_fee),
+          minDeposit: parseInt(localAgent.min_deposit || '50000000'),
+          maxDeposit: parseInt(localAgent.max_deposit || '100000000000'),
+          creator: localAgent.creator,
+          isActive: localAgent.is_active,
+          createdAt: new Date(localAgent.created_at).getTime(),
+          totalSubscribers: localAgent.total_subscribers,
+          teeWalletAddress: localAgent.tee_wallet_address,
+        };
+      }
+
+      // If not in localStorage, try to fetch from blockchain
+      console.log('🔗 Fetching agent info from blockchain...');
       const manager = await initializeTransactionManager();
       const client = manager.getClient();
+      
+      // Validate agentId format
+      if (!agentId || typeof agentId !== 'string' || agentId.length < 32) {
+        throw new Error('Invalid agent ID format');
+      }
       
       // Get the agent object and its fields
       const agentObject = await client.getObject({
@@ -325,14 +348,14 @@ export const useSuiTransactions = () => {
       });
 
       if (!agentObject.data?.content || agentObject.data.content.dataType !== 'moveObject') {
-        throw new Error('Agent object not found or invalid');
+        throw new Error('Agent object not found on blockchain');
       }
 
       const fields = agentObject.data.content.fields as any;
       
       return {
         name: fields.name,
-        description: fields.description,
+        description: fields.description || '',
         subscriptionFee: parseInt(fields.subscription_fee_per_month),
         minDeposit: parseInt(fields.min_deposit),
         maxDeposit: parseInt(fields.max_deposit),
@@ -344,9 +367,240 @@ export const useSuiTransactions = () => {
       };
     } catch (error) {
       console.error('❌ Failed to get agent info:', error);
+      console.error('❌ Agent ID:', agentId);
+      
+      // Return a fallback object for localStorage agents that failed blockchain lookup
+      const localAgents = JSON.parse(localStorage.getItem('localAgents') || '[]');
+      const localAgent = localAgents.find((agent: any) => agent.agent_id === agentId);
+      
+      if (localAgent) {
+        console.log('📱 Fallback: returning localStorage agent data despite blockchain error');
+        return {
+          name: localAgent.name,
+          description: localAgent.description || '',
+          subscriptionFee: parseInt(localAgent.subscription_fee),
+          minDeposit: parseInt(localAgent.min_deposit || '50000000'),
+          maxDeposit: parseInt(localAgent.max_deposit || '100000000000'),
+          creator: localAgent.creator,
+          isActive: localAgent.is_active,
+          createdAt: new Date(localAgent.created_at).getTime(),
+          totalSubscribers: localAgent.total_subscribers,
+          teeWalletAddress: localAgent.tee_wallet_address,
+        };
+      }
+      
       throw error;
     }
   }, [initializeTransactionManager]);
+const isUserSubscribed = useCallback(async (agentId: string, userAddress: string): Promise<boolean> => {
+    try {
+      const manager = await initializeTransactionManager();
+      const client = manager.getClient();
+      
+      const result = await client.devInspectTransactionBlock({
+        transactionBlock: (() => {
+          const tx = new Transaction();
+          tx.moveCall({
+            target: `${PACKAGE_ID}::${SUBSCRIPTION_MANAGER_MODULE}::is_subscribed`,
+            arguments: [
+              tx.object(SUBSCRIPTION_MANAGER_ID),
+              tx.pure.id(agentId),
+              tx.pure.address(userAddress),
+            ],
+          });
+          return tx;
+        })(),
+        sender: manager.getUserAddress()!,
+      });
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [isSubscribed] = result.results[0].returnValues[0];
+        return isSubscribed[0] === 1;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('❌ Failed to check subscription status:', error);
+      return false;
+    }
+  }, [initializeTransactionManager]);
+
+  // Get user's current deposit amount for an agent
+  const getUserDepositAmount = useCallback(async (agentId: string, userAddress: string): Promise<number> => {
+    try {
+      const manager = await initializeTransactionManager();
+      const client = manager.getClient();
+      
+      const result = await client.devInspectTransactionBlock({
+        transactionBlock: (() => {
+          const tx = new Transaction();
+          tx.moveCall({
+            target: `${PACKAGE_ID}::${SUBSCRIPTION_MANAGER_MODULE}::get_user_deposit`,
+            arguments: [
+              tx.object(SUBSCRIPTION_MANAGER_ID),
+              tx.pure.id(agentId),
+              tx.pure.address(userAddress),
+            ],
+          });
+          return tx;
+        })(),
+        sender: manager.getUserAddress()!,
+      });
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [amount] = result.results[0].returnValues[0];
+        const depositMist = parseInt(amount.toString());
+        return depositMist;
+      }
+      
+      return 0;
+    } catch (error) {
+      console.error('❌ Failed to get user deposit amount:', error);
+      return 0;
+    }
+  }, [initializeTransactionManager]);
+
+  // Get agent's total deposited amount
+  const getAgentTotalDeposited = useCallback(async (agentId: string): Promise<number> => {
+    try {
+      const manager = await initializeTransactionManager();
+      const client = manager.getClient();
+      
+      const result = await client.devInspectTransactionBlock({
+        transactionBlock: (() => {
+          const tx = new Transaction();
+          tx.moveCall({
+            target: `${PACKAGE_ID}::${SUBSCRIPTION_MANAGER_MODULE}::get_agent_total_deposited`,
+            arguments: [
+              tx.object(SUBSCRIPTION_MANAGER_ID),
+              tx.pure.id(agentId),
+            ],
+          });
+          return tx;
+        })(),
+        sender: manager.getUserAddress()!,
+      });
+
+      if (result.results?.[0]?.returnValues?.[0]) {
+        const [amount] = result.results[0].returnValues[0];
+        return parseInt(amount.toString());
+      }
+      
+      return 0;
+    } catch (error) {
+      console.error('❌ Failed to get agent total deposited:', error);
+      return 0;
+    }
+  }, [initializeTransactionManager]);
+
+  // Create a simple transfer transaction to TEE wallet
+  const createDepositTransaction = useCallback((params: DepositTradingFundsParams & { teeWalletAddress: string }): Transaction => {
+    const transaction = new Transaction();
+
+    // Convert SUI to MIST (1 SUI = 1,000,000,000 MIST)
+    const depositAmountMist = Math.floor(params.amount * 1_000_000_000);
+    
+    // Split coin for transfer
+    const transferCoin = transaction.splitCoins(transaction.gas, [transaction.pure.u64(depositAmountMist)]);
+
+    // Transfer directly to the agent's TEE wallet
+    transaction.transferObjects([transferCoin], transaction.pure.address(params.teeWalletAddress));
+
+    // Set gas budget
+    transaction.setGasBudget(15000000); // 0.015 SUI
+
+    return transaction;
+  }, []);
+
+  // Deposit trading funds - simplified version
+  const depositTradingFunds = useCallback(async (agentId: string, amount: number, agentData: any): Promise<DepositResult> => {
+    setIsTransacting(true);
+    try {
+      console.log('🚀 Depositing trading funds...', { agentId, amount, teeWallet: agentData.wallet_address });
+      
+      // Validation checks
+      const minDepositSui = 0.2;
+      if (amount < minDepositSui) {
+        throw new Error(`Minimum deposit amount is ${minDepositSui} SUI`);
+      }
+
+      // Check if TEE wallet address is available
+      if (!agentData.wallet_address) {
+        throw new Error('Agent TEE wallet address not found. Please contact the agent creator.');
+      }
+
+      const manager = await initializeTransactionManager();
+      const userAddress = manager.getUserAddress();
+      
+      // Check if user is subscribed
+      console.log('🔍 Checking subscription status...');
+      const isSubscribed = await isUserSubscribed(agentId, userAddress!);
+      if (!isSubscribed) {
+        throw new Error('You must be subscribed to this agent before depositing funds');
+      }
+      console.log('✅ User is subscribed');
+
+      // Get current balances before deposit (optional for tracking)
+      const userCurrentDeposit = await getUserDepositAmount(agentId, userAddress!);
+      const agentCurrentTotal = await getAgentTotalDeposited(agentId);
+      
+      console.log('📊 Current deposit status:', {
+        userCurrentDepositSui: userCurrentDeposit / 1_000_000_000,
+        agentTotalDepositedSui: agentCurrentTotal / 1_000_000_000,
+        teeWalletAddress: agentData.wallet_address,
+      });
+
+      // Create and execute transfer transaction
+      const transaction = createDepositTransaction({ 
+        agentId, 
+        amount, 
+        teeWalletAddress: agentData.wallet_address 
+      });
+      
+      const result = await manager.executeTransaction(transaction, zkProof);
+      
+      console.log('✅ Deposit transaction successful:', result);
+      
+      // Get updated balances after deposit (optional)
+      const userNewDeposit = await getUserDepositAmount(agentId, userAddress!);
+      const agentNewTotal = await getAgentTotalDeposited(agentId);
+      
+      // Refresh user balance to reflect deposit and gas fees
+      console.log('🔄 Refreshing balance after deposit...');
+      await refreshBalance();
+      
+      return {
+        success: true,
+        agentId,
+        transactionDigest: result.digest,
+        result,
+        depositAmount: amount,
+        agentWalletAddress: agentData.tee_wallet_address,
+        userTotalDeposited: userNewDeposit / 1_000_000_000, // Convert back to SUI
+        agentTotalDeposited: agentNewTotal / 1_000_000_000, // Convert back to SUI
+      };
+    } catch (error) {
+      console.error('❌ Failed to deposit trading funds:', error);
+      
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) {
+        if (error.message.includes('ENotSubscribed')) {
+          errorMessage = 'You must be subscribed to this agent before depositing funds';
+        } else if (error.message.includes('insufficient')) {
+          errorMessage = 'Insufficient funds for this deposit';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      return {
+        success: false,
+        error: errorMessage
+      };
+    } finally {
+      setIsTransacting(false);
+    }
+  }, [initializeTransactionManager, isUserSubscribed, getUserDepositAmount, getAgentTotalDeposited, createDepositTransaction, zkProof, refreshBalance]);
 
   // Store agent in localStorage for immediate display
   const storeAgentInLocalStorage = useCallback(async (agentId: string, params: CreateAgentParams) => {
@@ -409,6 +663,11 @@ export const useSuiTransactions = () => {
     depositTradingFunds,
     getUserAddress,
     getAgentInfo,
+    
+    // Helper functions
+    isUserSubscribed,
+    getUserDepositAmount,
+    getAgentTotalDeposited,
     
     // Utility
     initializeTransactionManager
