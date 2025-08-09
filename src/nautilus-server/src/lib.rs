@@ -27,7 +27,7 @@ pub mod app {
 
     #[cfg(feature = "trading")]
     pub use crate::examples::trading::{
-        InitWalletRequest, InitWalletResponse, CreateBalanceResponse,
+        InitWalletRequest, InitWalletResponse,
         TradeRequest, TradeResponse, WalletStatusRequest, WalletStatusResponse,
         WithdrawRequest, WithdrawResponse,
     };

@@ -24,10 +24,9 @@ async fn main() -> Result<()> {
     {
         println!("🚀 Starting Nautilus Trading Agent...");
         println!("📍 Trading endpoints available:");
-        println!("   POST /init_wallet         - Initialize trading wallet");
-        println!("   POST /create_user_balance - Create DEX UserBalance");
+        println!("   POST /init_wallet         - Initialize trading wallet & get address for deposits");
+        println!("   POST /wallet_status       - Get wallet address and current balances");
         println!("   POST /execute_trade       - Execute swap on DEX");
-        println!("   POST /wallet_status       - Get wallet status");
         println!("   POST /withdraw            - Withdraw funds (owner only)");
     }
 
@@ -77,12 +76,6 @@ async fn main() -> Result<()> {
             .and(with_state(state.clone()))
             .and_then(nautilus_server::examples::trading::init_wallet_wrapper);
 
-        let create_balance = warp::path("create_user_balance")
-            .and(warp::post())
-            .and(warp::body::json())
-            .and(with_state(state.clone()))
-            .and_then(nautilus_server::examples::trading::create_user_balance_wrapper);
-
         let execute_trade = warp::path("execute_trade")
             .and(warp::post())
             .and(warp::body::json())
@@ -101,7 +94,7 @@ async fn main() -> Result<()> {
             .and(with_state(state.clone()))
             .and_then(nautilus_server::examples::trading::withdraw_wrapper);
 
-        init_wallet.or(create_balance).or(execute_trade).or(wallet_status).or(withdraw)
+        init_wallet.or(execute_trade).or(wallet_status).or(withdraw)
     };
 
     let routes = ping.or(health).or(attestation);

@@ -12,6 +12,18 @@ use tokio::sync::RwLock;
 use lazy_static::lazy_static;
 use tracing::info;
 
+// Sui SDK imports
+#[cfg(feature = "trading")]
+use sui_sdk::{SuiClient, SuiClientBuilder};
+#[cfg(feature = "trading")]
+use sui_types::{
+    base_types::{ObjectID, SuiAddress}, 
+    coin::CoinMetadata,
+    transaction::{Transaction, TransactionData}
+};
+#[cfg(feature = "trading")]
+use sui_json_rpc_types::{SuiObjectResponse, SuiObjectDataOptions, SuiTransactionBlockResponse};
+
 // Constants - Your DEX configuration
 #[allow(dead_code)]
 const DEX_PACKAGE_ID: &str = "0xf6c779446cf6a60ecf2f158006130a047066583e98caa9fa7ad038cac3a32f82";
@@ -29,7 +41,6 @@ struct WalletState {
     keypair: Arc<Ed25519KeyPair>,
     address: String,
     owner: String,
-    user_balance_id: Option<String>,
 }
 
 // ====== Request/Response Types (matching sentinel pattern) ======
@@ -47,20 +58,8 @@ pub struct InitWalletResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateBalanceRequest {
-    // Empty, just triggers creation
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct EmptyRequest {
     // Empty request for operations that don't need parameters
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CreateBalanceResponse {
-    pub user_balance_id: String,
-    pub tx_digest: String,
-    pub wallet_address: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -88,7 +87,6 @@ pub struct WalletStatusResponse {
     pub initialized: bool,
     pub wallet_address: Option<String>,
     pub owner: Option<String>,
-    pub user_balance_id: Option<String>,
     pub sui_balance: u64,
     pub usdc_balance: u64,
 }
@@ -135,15 +133,10 @@ fn get_current_timestamp() -> u64 {
 }
 
 // Mock implementations - replace with actual sui-sdk calls
-async fn build_and_execute_create_balance(keypair: &Ed25519KeyPair) -> Result<String, EnclaveError> {
-    // In production: use sui-sdk to build and submit transaction
-    let mock_signature: fastcrypto::ed25519::Ed25519Signature = keypair.sign(b"create_balance");
-    Ok(format!("0x{}", Hex::encode(&mock_signature.as_bytes()[..8])))
-}
 
 async fn build_and_execute_swap_sui_to_usdc(
     keypair: &Ed25519KeyPair,
-    _user_balance_id: &str,
+    _wallet_address: &str,
     _amount: u64,
     _min_output: u64,
 ) -> Result<String, EnclaveError> {
@@ -153,7 +146,7 @@ async fn build_and_execute_swap_sui_to_usdc(
 
 async fn build_and_execute_swap_usdc_to_sui(
     keypair: &Ed25519KeyPair,
-    _user_balance_id: &str,
+    _wallet_address: &str,
     _amount: u64,
     _min_output: u64,
 ) -> Result<String, EnclaveError> {
@@ -171,9 +164,55 @@ async fn build_and_execute_withdrawal(
     Ok((format!("0x{}", Hex::encode(&mock_signature.as_bytes()[..8])), actual_amount))
 }
 
-async fn fetch_balances(_address: &str) -> Result<(u64, u64), EnclaveError> {
-    // In production: query chain for actual balances
-    Ok((1000000000, 100000000)) // Mock: 1 SUI, 100 USDC
+async fn fetch_balances(address: &str) -> Result<(u64, u64), EnclaveError> {
+    #[cfg(feature = "trading")]
+    {
+        // Create Sui client
+        let client = SuiClientBuilder::default()
+            .build(SUI_RPC_URL)
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to create Sui client: {}", e)))?;
+
+        // Parse the address
+        let sui_address: SuiAddress = address.parse()
+            .map_err(|e| EnclaveError::GenericError(format!("Invalid address format: {}", e)))?;
+
+        // Get all coin objects for this address
+        let coins = client
+            .coin_read_api()
+            .get_all_coins(sui_address, None, None)
+            .await
+            .map_err(|e| EnclaveError::GenericError(format!("Failed to fetch coins: {}", e)))?;
+
+        let mut sui_balance = 0u64;
+        let mut usdc_balance = 0u64;
+
+        // USDC coin type on devnet (this is an example, you may need to update with actual USDC type)
+        const USDC_COIN_TYPE: &str = "0x2::coin::Coin<0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN>";
+
+        for coin in coins.data {
+            match coin.coin_type.as_str() {
+                "0x2::sui::SUI" => {
+                    sui_balance += coin.balance;
+                }
+                coin_type if coin_type == USDC_COIN_TYPE => {
+                    usdc_balance += coin.balance;
+                }
+                _ => {
+                    // Other coin types, ignore for now
+                }
+            }
+        }
+
+        info!("Fetched balances for {}: SUI={}, USDC={}", address, sui_balance, usdc_balance);
+        Ok((sui_balance, usdc_balance))
+    }
+    
+    #[cfg(not(feature = "trading"))]
+    {
+        // Fallback for when trading feature is not enabled
+        Ok((0, 0))
+    }
 }
 
 // ====== Warp Wrapper Functions ======
@@ -191,18 +230,6 @@ pub async fn init_wallet_wrapper(
     }
 }
 
-pub async fn create_user_balance_wrapper(
-    request: ProcessDataRequest<EmptyRequest>,
-    state: Arc<AppState>,
-) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
-    match create_user_balance_internal(state, request).await {
-        Ok(response) => Ok(Box::new(warp::reply::json(&response))),
-        Err(e) => Ok(Box::new(warp::reply::with_status(
-            warp::reply::json(&serde_json::json!({ "error": e.to_string() })),
-            warp::http::StatusCode::BAD_REQUEST,
-        ))),
-    }
-}
 
 pub async fn execute_trade_wrapper(
     request: ProcessDataRequest<TradeRequest>,
@@ -265,7 +292,6 @@ async fn init_wallet_internal(
         keypair: Arc::new(keypair),
         address: address.clone(),
         owner: request.payload.owner_address.clone(),
-        user_balance_id: None,
     };
     
     *wallet_guard = Some(wallet_state);
@@ -286,38 +312,6 @@ async fn init_wallet_internal(
     ))
 }
 
-async fn create_user_balance_internal(
-    state: Arc<AppState>,
-    _request: ProcessDataRequest<EmptyRequest>,
-) -> Result<ProcessedDataResponse<IntentMessage<CreateBalanceResponse>>, EnclaveError> {
-    info!("Creating DEX UserBalance for trading wallet");
-    
-    let mut wallet_guard = TRADING_WALLET.write().await;
-    let wallet_state = wallet_guard.as_mut()
-        .ok_or_else(|| EnclaveError::GenericError("Wallet not initialized".to_string()))?;
-    
-    // Mock transaction - in production, use sui-sdk to build and submit
-    let tx_digest = build_and_execute_create_balance(&*wallet_state.keypair).await?;
-    
-    // Store the created UserBalance ID
-    let user_balance_id = format!("0x{}", Hex::encode(&rand::random::<[u8; 32]>()));
-    wallet_state.user_balance_id = Some(user_balance_id.clone());
-    
-    let timestamp_ms = get_current_timestamp();
-    
-    let response = CreateBalanceResponse {
-        tx_digest,
-        user_balance_id,
-        wallet_address: wallet_state.address.clone(),
-    };
-    
-    Ok(to_signed_response(
-        &state.eph_kp,
-        response,
-        timestamp_ms,
-        IntentScope::ProcessData,
-    ))
-}
 
 async fn execute_trade_internal(
     state: Arc<AppState>,
@@ -329,16 +323,12 @@ async fn execute_trade_internal(
     let wallet_state = wallet_guard.as_ref()
         .ok_or_else(|| EnclaveError::GenericError("Wallet not initialized".to_string()))?;
     
-    if wallet_state.user_balance_id.is_none() {
-        return Err(EnclaveError::GenericError("UserBalance not created".to_string()));
-    }
-    
     // Execute trade based on action
     let tx_digest = match request.payload.action.as_str() {
         "buy_sui" => {
             build_and_execute_swap_usdc_to_sui(
                 &*wallet_state.keypair,
-                wallet_state.user_balance_id.as_ref().unwrap(),
+                &wallet_state.address,
                 request.payload.amount,
                 request.payload.min_output,
             ).await?
@@ -346,7 +336,7 @@ async fn execute_trade_internal(
         "sell_sui" => {
             build_and_execute_swap_sui_to_usdc(
                 &*wallet_state.keypair,
-                wallet_state.user_balance_id.as_ref().unwrap(),
+                &wallet_state.address,
                 request.payload.amount,
                 request.payload.min_output,
             ).await?
@@ -379,15 +369,21 @@ async fn wallet_status_internal(
     
     let wallet_guard = TRADING_WALLET.read().await;
     
-    let (initialized, wallet_address, owner, user_balance_id) = if let Some(wallet) = wallet_guard.as_ref() {
-        (true, Some(wallet.address.clone()), Some(wallet.owner.clone()), wallet.user_balance_id.clone())
+    let (initialized, wallet_address, owner) = if let Some(wallet) = wallet_guard.as_ref() {
+        (true, Some(wallet.address.clone()), Some(wallet.owner.clone()))
     } else {
-        (false, None, None, None)
+        (false, None, None)
     };
     
-    // Mock balances - in production, query from blockchain
-    let (sui_balance, usdc_balance) = if initialized {
-        (1000000000, 500000000) // 1 SUI, 500 USDC (with decimals)
+    // Fetch actual balances from blockchain
+    let (sui_balance, usdc_balance) = if initialized && wallet_address.is_some() {
+        match fetch_balances(wallet_address.as_ref().unwrap()).await {
+            Ok((sui, usdc)) => (sui, usdc),
+            Err(e) => {
+                info!("Failed to fetch balances: {}", e);
+                (0, 0) // Fallback to zero if fetch fails
+            }
+        }
     } else {
         (0, 0)
     };
@@ -398,7 +394,6 @@ async fn wallet_status_internal(
         initialized,
         wallet_address,
         owner,
-        user_balance_id,
         sui_balance,
         usdc_balance,
     };
