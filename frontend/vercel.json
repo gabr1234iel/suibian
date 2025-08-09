@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/docs/:path*",
-      "destination": "https://hosting.gitbook.io/:path*"
+      "source": "/gitbook/:path*",
+      "destination": "https://proxy.gitbook.site/sites/site_WRWm7/:path*"
     }
   ]
 }
