@@ -23,16 +23,12 @@ const Footer: React.FC = () => {
 
   const footerLinks = {
     product: [
-      { name: "Marketplace", href: "#marketplace" },
-      { name: "Create Agent", href: "#create" },
-      { name: "Dashboard", href: "#dashboard" },
-      { name: "Analytics", href: "#analytics" },
+      { name: "Marketplace", href: "marketplace" },
+      { name: "Create Agent", href: "create" },
+      { name: "Dashboard", href: "dashboard" },
     ],
     developers: [
       { name: "Documentation", href: "docs" },
-      { name: "API Reference", href: "#api" },
-      { name: "SDKs", href: "#sdks" },
-      { name: "Examples", href: "#examples" },
     ],
     community: [
       { name: "Discord", href: "#discord" },
