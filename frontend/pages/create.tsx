@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useAppContext } from "../context/AppContext";
 import { useSuiTransactions } from "../hooks/useSuiTransactions";
 import Header from "@/components/Header";
+import SuccessModal from "@/components/SuccessModal";
 
 interface AgentFormData {
   name: string;
@@ -11,6 +12,30 @@ interface AgentFormData {
   riskLevel: "Low" | "Medium" | "High";
   fee: number;
   tags: string[];
+  // Sui DeFi specific fields
+  dexes: string[];
+  tradingStrategy: "arbitrage" | "momentum" | "meanReversion" | "gridTrading" | "dca" | "custom";
+  tokenPairs: string[];
+  // TEE & Security Configuration
+  allowedDomains: string[];
+  agentEndpoint: string;
+  attestationRequired: boolean;
+  // Technical indicators
+  rsiEnabled: boolean;
+  rsiBuyThreshold: number;
+  rsiSellThreshold: number;
+  maEnabled: boolean;
+  maShortPeriod: number;
+  maLongPeriod: number;
+  // Risk management
+  maxPositionSize: number;
+  stopLossPercent: number;
+  takeProfitPercent: number;
+  maxDrawdown: number;
+  // Execution parameters
+  executionFrequency: "1min" | "5min" | "15min" | "1hour" | "4hour" | "1day";
+  minTradeAmount: number;
+  maxSlippage: number;
 }
 
 const CreateAgentPage: React.FC = () => {
@@ -31,8 +56,65 @@ const CreateAgentPage: React.FC = () => {
     riskLevel: "Medium",
     fee: 2.0,
     tags: [],
+    // Sui DeFi specific fields
+    dexes: [],
+    tradingStrategy: "momentum",
+    tokenPairs: ["SUI/USDC"],
+    // TEE & Security Configuration
+    allowedDomains: [],
+    agentEndpoint: "",
+    attestationRequired: true,
+    // Technical indicators
+    rsiEnabled: false,
+    rsiBuyThreshold: 30,
+    rsiSellThreshold: 70,
+    maEnabled: false,
+    maShortPeriod: 9,
+    maLongPeriod: 21,
+    // Risk management
+    maxPositionSize: 10,
+    stopLossPercent: 5,
+    takeProfitPercent: 10,
+    maxDrawdown: 15,
+    // Execution parameters
+    executionFrequency: "15min",
+    minTradeAmount: 100,
+    maxSlippage: 2,
   });
   const [tagInput, setTagInput] = useState<string>("");
+  const [allowedDomainInput, setAllowedDomainInput] = useState<string>("");
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [successData, setSuccessData] = useState<{
+    agentId?: string;
+    transactionDigest?: string;
+    agentName?: string;
+  }>({});
+
+  // Sui ecosystem DEXes
+  const availableDexes = [
+    "Cetus Protocol",
+    "Turbos Finance", 
+    "BlueMove",
+    "Aftermath Finance",
+    "Kriya DEX",
+    "SuiSwap",
+    "Kai Finance",
+    "FlowX Finance"
+  ];
+
+  // Popular Sui token pairs
+  const popularTokenPairs = [
+    "SUI/USDC",
+    "SUI/USDT", 
+    "WETH/USDC",
+    "WBTC/USDC",
+    "USDC/USDT",
+    "SUI/WETH",
+    "CETUS/SUI",
+    "TURBOS/SUI",
+    "BLUE/SUI",
+    "DEEP/SUI"
+  ];
   const [isInitializingBlockchain, setIsInitializingBlockchain] =
     useState(false);
 
@@ -89,11 +171,25 @@ const CreateAgentPage: React.FC = () => {
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ): void => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === "fee" ? parseFloat(value) || 0 : value,
-    }));
+    const { name, value, type } = e.target;
+    
+    if (type === "checkbox") {
+      const target = e.target as HTMLInputElement;
+      setFormData((prev) => ({
+        ...prev,
+        [name]: target.checked,
+      }));
+    } else if (type === "number") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: parseFloat(value) || 0,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const addTag = (): void => {
@@ -111,6 +207,61 @@ const CreateAgentPage: React.FC = () => {
       ...prev,
       tags: prev.tags.filter((tag) => tag !== tagToRemove),
     }));
+  };
+
+  const addDex = (dex: string): void => {
+    if (dex && !formData.dexes.includes(dex)) {
+      setFormData((prev) => ({
+        ...prev,
+        dexes: [...prev.dexes, dex],
+      }));
+    }
+  };
+
+  const removeDex = (dexToRemove: string): void => {
+    setFormData((prev) => ({
+      ...prev,
+      dexes: prev.dexes.filter((dex) => dex !== dexToRemove),
+    }));
+  };
+
+  const addTokenPair = (pair: string): void => {
+    if (pair && !formData.tokenPairs.includes(pair)) {
+      setFormData((prev) => ({
+        ...prev,
+        tokenPairs: [...prev.tokenPairs, pair],
+      }));
+    }
+  };
+
+  const removeTokenPair = (pairToRemove: string): void => {
+    setFormData((prev) => ({
+      ...prev,
+      tokenPairs: prev.tokenPairs.filter((pair) => pair !== pairToRemove),
+    }));
+  };
+
+  const addAllowedDomain = (): void => {
+    if (allowedDomainInput.trim() && !formData.allowedDomains.includes(allowedDomainInput.trim())) {
+      setFormData((prev) => ({
+        ...prev,
+        allowedDomains: [...prev.allowedDomains, allowedDomainInput.trim()],
+      }));
+      setAllowedDomainInput("");
+    }
+  };
+
+  const removeAllowedDomain = (domainToRemove: string): void => {
+    setFormData((prev) => ({
+      ...prev,
+      allowedDomains: prev.allowedDomains.filter((domain) => domain !== domainToRemove),
+    }));
+  };
+
+  const handleSuccessModalClose = (): void => {
+    setShowSuccessModal(false);
+    setSuccessData({});
+    router.push("/dashboard");
   };
 
   const handleTagInputKeyPress = (
@@ -141,6 +292,22 @@ const CreateAgentPage: React.FC = () => {
       return;
     }
 
+    // Validate required fields
+    if (formData.dexes.length === 0) {
+      alert("Please select at least one DEX for your agent to trade on.");
+      return;
+    }
+
+    if (formData.tokenPairs.length === 0) {
+      alert("Please select at least one token pair for your agent to trade.");
+      return;
+    }
+
+    if (!formData.agentEndpoint.trim()) {
+      alert("Please provide your agent's endpoint URL.");
+      return;
+    }
+
     try {
       console.log("🚀 Creating agent on blockchain...", {
         name: formData.name,
@@ -148,6 +315,12 @@ const CreateAgentPage: React.FC = () => {
         fee: formData.fee,
         riskLevel: formData.riskLevel,
         tags: formData.tags,
+        dexes: formData.dexes,
+        tradingStrategy: formData.tradingStrategy,
+        tokenPairs: formData.tokenPairs,
+        agentEndpoint: formData.agentEndpoint,
+        allowedDomains: formData.allowedDomains,
+        attestationRequired: formData.attestationRequired,
       });
 
       // Create agent using the hook
@@ -158,18 +331,12 @@ const CreateAgentPage: React.FC = () => {
       });
 
       if (result.success) {
-        alert(`🎉 Agent "${formData.name}" created successfully on blockchain!
-
-        ✅ Details:
-        - Agent ID: ${result.agentId || "N/A"}
-        - Transaction: ${result.transactionDigest}
-        - Name: ${formData.name}
-        - Description: ${formData.description}  
-        - Fee: ${formData.fee}%
-
-        Your agent is now live on the Sui devnet!`);
-
-        router.push("/marketplace");
+        setSuccessData({
+          agentId: result.agentId,
+          transactionDigest: result.transactionDigest,
+          agentName: formData.name,
+        });
+        setShowSuccessModal(true);
       } else {
         throw new Error(result.error || "Agent creation failed");
       }
@@ -236,11 +403,10 @@ Please check the console for detailed error information and try again.`);
       <div className="max-w-4xl mx-auto px-6 py-8 pt-24">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Create Trading Agent
+            Create Secure Trading Agent
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Share your trading strategy with the community and earn fees from
-            subscribers
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            Deploy a verifiable trading agent powered by Nautilus TEE. Your strategy executes securely in a Trusted Execution Environment, with cryptographic proof of execution.
           </p>
 
           {/* Enhanced Blockchain Status Indicator */}
@@ -255,33 +421,13 @@ Please check the console for detailed error information and try again.`);
               }`}
             ></div>
             <span
-              className={
-                blockchainStatus.color === "green"
-                  ? "text-green-400"
-                  : blockchainStatus.color === "yellow"
-                    ? "text-yellow-400"
-                    : "text-red-400"
-              }
+              className={`${isReady ? "text-green-400" : "text-yellow-400"}`}
             >
-              {blockchainStatus.message}
+              {isReady
+                ? "✅ Blockchain Ready - Agent Metadata will be submitted to Sui Devnet"
+                : "⏳ Waiting for complete login data..."}
             </span>
           </div>
-
-          {/* Debug info for development */}
-          {process.env.NODE_ENV === "development" && (
-            <div className="bg-dark-800 border border-gray-600 rounded-lg p-4 mb-4">
-              <h4 className="text-sm font-medium text-gray-300 mb-2">
-                Debug Info:
-              </h4>
-              <div className="text-xs text-gray-400 space-y-1">
-                <div>User Google ID: {userGoogleId ? "✅" : "❌"}</div>
-                <div>User Salt: {userSalt ? "✅" : "❌"}</div>
-                <div>JWT Token: {jwt ? "✅" : "❌"}</div>
-                <div>Ephemeral Keypair: {ephemeralKeypair ? "✅" : "❌"}</div>
-                <div>Transaction Hook Ready: {isReady ? "✅" : "❌"}</div>
-              </div>
-            </div>
-          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -294,7 +440,7 @@ Please check the console for detailed error information and try again.`);
               <div>
                 <label
                   htmlFor="name"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  className="block text-sm font-medium text-gray-700 dark:text-white mb-2"
                 >
                   Agent Name *
                 </label>
@@ -305,15 +451,15 @@ Please check the console for detailed error information and try again.`);
                   required
                   value={formData.name}
                   onChange={handleInputChange}
-                  placeholder="e.g., DeFi Yield Maximizer"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  placeholder="e.g., DeFi Trading Pro"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="riskLevel"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  className="block text-sm font-medium text-gray-700 dark:text-white mb-2"
                 >
                   Risk Level *
                 </label>
@@ -335,7 +481,7 @@ Please check the console for detailed error information and try again.`);
             <div className="mt-6">
               <label
                 htmlFor="strategy"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                className="block text-sm font-medium text-gray-700 dark:text-white mb-2"
               >
                 Strategy Summary *
               </label>
@@ -347,14 +493,14 @@ Please check the console for detailed error information and try again.`);
                 value={formData.strategy}
                 onChange={handleInputChange}
                 placeholder="Brief description of your trading strategy"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
 
             <div className="mt-6">
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                className="block text-sm font-medium text-gray-700 dark:text-white mb-2"
               >
                 Detailed Description *
               </label>
@@ -366,14 +512,14 @@ Please check the console for detailed error information and try again.`);
                 value={formData.description}
                 onChange={handleInputChange}
                 placeholder="Explain how your strategy works, what markets it targets, and what makes it unique..."
-                className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
 
             <div className="mt-6">
               <label
                 htmlFor="fee"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                className="block text-sm font-medium text-gray-700 dark:text-white mb-2"
               >
                 Management Fee (%) *
               </label>
@@ -389,9 +535,485 @@ Please check the console for detailed error information and try again.`);
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">
                 Fee charged to subscribers (0-10%)
               </p>
+            </div>
+          </div>
+
+          {/* Sui DeFi Configuration */}
+          <div className="bg-white dark:bg-dark-800 rounded-xl shadow-lg border border-gray-200 dark:border-dark-700 p-8">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+              🌊 Sui DeFi Configuration
+            </h2>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                  Supported DEXes *
+                </label>
+                <div className="space-y-2">
+                  {availableDexes.map((dex) => (
+                    <label key={dex} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.dexes.includes(dex)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            addDex(dex);
+                          } else {
+                            removeDex(dex);
+                          }
+                        }}
+                        className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-white">{dex}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-2">
+                  Select the DEXes your agent will trade on
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                  Trading Strategy *
+                </label>
+                <select
+                  name="tradingStrategy"
+                  value={formData.tradingStrategy}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="arbitrage">Arbitrage Trading</option>
+                  <option value="momentum">Momentum Trading</option>
+                  <option value="meanReversion">Mean Reversion</option>
+                  <option value="gridTrading">Grid Trading</option>
+                  <option value="dca">Dollar Cost Averaging</option>
+                  <option value="custom">Custom Strategy</option>
+                </select>
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
+                  Primary trading strategy approach
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                Target Token Pairs
+              </label>
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {popularTokenPairs.map((pair) => (
+                    <button
+                      key={pair}
+                      type="button"
+                      onClick={() => addTokenPair(pair)}
+                      disabled={formData.tokenPairs.includes(pair)}
+                      className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+                        formData.tokenPairs.includes(pair)
+                          ? "bg-primary-100 border-primary-300 text-primary-700 dark:bg-primary-900 dark:border-primary-700 dark:text-primary-300 cursor-not-allowed"
+                          : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-primary-50 hover:border-primary-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-primary-900"
+                      }`}
+                    >
+                      {pair}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {formData.tokenPairs.map((pair, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 text-sm rounded-full"
+                    >
+                      {pair}
+                      <button
+                        type="button"
+                        onClick={() => removeTokenPair(pair)}
+                        className="ml-2 text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-200"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-2">
+                  Select from pre-verified token pairs on Sui network
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* TEE & Security Configuration */}
+          <div className="bg-white dark:bg-dark-800 rounded-xl shadow-lg border border-gray-200 dark:border-dark-700 p-8">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+              🔒 Nautilus TEE Configuration
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+              Configure your agent's endpoint and security settings for the Trusted Execution Environment
+            </p>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                  Agent Endpoint URL *
+                </label>
+                <input
+                  type="url"
+                  name="agentEndpoint"
+                  required
+                  value={formData.agentEndpoint}
+                  onChange={handleInputChange}
+                  placeholder="https://your-agent.example.com/api/trade"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
+                  Your agent's API endpoint that will call the Nautilus enclave
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                  Allowed Domains
+                </label>
+                <div className="space-y-3">
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={allowedDomainInput}
+                      onChange={(e) => setAllowedDomainInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addAllowedDomain();
+                        }
+                      }}
+                      placeholder="your-agent.example.com"
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={addAllowedDomain}
+                      className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.allowedDomains.map((domain, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-sm rounded-full"
+                      >
+                        {domain}
+                        <button
+                          type="button"
+                          onClick={() => removeAllowedDomain(domain)}
+                          className="ml-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-300">
+                    Domains authorized to make requests to your TEE enclave
+                  </p>
+                </div>
+              </div>
+
+              <div className="border border-gray-200 dark:border-dark-600 rounded-lg p-4">
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="attestationRequired"
+                    name="attestationRequired"
+                    checked={formData.attestationRequired}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
+                  />
+                  <div>
+                    <label htmlFor="attestationRequired" className="text-sm font-medium text-gray-700 dark:text-white">
+                      Require TEE Attestation
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-300">
+                      Enforce cryptographic proof that trades execute within the secure enclave
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="text-blue-600 dark:text-blue-400 mt-0.5">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">How it works</h4>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                      Your agent will send trading requests to a Nautilus TEE enclave. The enclave verifies your agent's identity, 
+                      executes trades securely, and provides cryptographic attestation of execution.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Technical Indicators */}
+          <div className="bg-white dark:bg-dark-800 rounded-xl shadow-lg border border-gray-200 dark:border-dark-700 p-8">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+              📊 Technical Indicators
+            </h2>
+
+            <div className="space-y-6">
+              {/* RSI Configuration */}
+              <div className="border border-gray-200 dark:border-dark-600 rounded-lg p-4">
+                <div className="flex items-center space-x-3 mb-4">
+                  <input
+                    type="checkbox"
+                    id="rsiEnabled"
+                    name="rsiEnabled"
+                    checked={formData.rsiEnabled}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
+                  />
+                  <label htmlFor="rsiEnabled" className="text-sm font-medium text-gray-700 dark:text-white">
+                    Enable RSI (Relative Strength Index)
+                  </label>
+                </div>
+                {formData.rsiEnabled && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-7">
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-300 mb-1">
+                        Buy Threshold (Oversold)
+                      </label>
+                      <input
+                        type="number"
+                        name="rsiBuyThreshold"
+                        min="0"
+                        max="100"
+                        value={formData.rsiBuyThreshold}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-300 mb-1">
+                        Sell Threshold (Overbought)
+                      </label>
+                      <input
+                        type="number"
+                        name="rsiSellThreshold"
+                        min="0"
+                        max="100"
+                        value={formData.rsiSellThreshold}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Moving Average Configuration */}
+              <div className="border border-gray-200 dark:border-dark-600 rounded-lg p-4">
+                <div className="flex items-center space-x-3 mb-4">
+                  <input
+                    type="checkbox"
+                    id="maEnabled"
+                    name="maEnabled"
+                    checked={formData.maEnabled}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500"
+                  />
+                  <label htmlFor="maEnabled" className="text-sm font-medium text-gray-700 dark:text-white">
+                    Enable Moving Average Crossover
+                  </label>
+                </div>
+                {formData.maEnabled && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-7">
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-300 mb-1">
+                        Short Period (Fast MA)
+                      </label>
+                      <input
+                        type="number"
+                        name="maShortPeriod"
+                        min="1"
+                        max="200"
+                        value={formData.maShortPeriod}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-300 mb-1">
+                        Long Period (Slow MA)
+                      </label>
+                      <input
+                        type="number"
+                        name="maLongPeriod"
+                        min="1"
+                        max="200"
+                        value={formData.maLongPeriod}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Risk Management */}
+          <div className="bg-white dark:bg-dark-800 rounded-xl shadow-lg border border-gray-200 dark:border-dark-700 p-8">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+              🛡️ Risk Management
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                  Max Position Size (%)
+                </label>
+                <input
+                  type="number"
+                  name="maxPositionSize"
+                  min="1"
+                  max="100"
+                  value={formData.maxPositionSize}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
+                  Maximum % of portfolio per trade
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                  Stop Loss (%)
+                </label>
+                <input
+                  type="number"
+                  name="stopLossPercent"
+                  min="0.1"
+                  max="50"
+                  step="0.1"
+                  value={formData.stopLossPercent}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
+                  Automatic stop loss percentage
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                  Take Profit (%)
+                </label>
+                <input
+                  type="number"
+                  name="takeProfitPercent"
+                  min="0.1"
+                  max="100"
+                  step="0.1"
+                  value={formData.takeProfitPercent}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
+                  Automatic profit taking percentage
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                  Max Drawdown (%)
+                </label>
+                <input
+                  type="number"
+                  name="maxDrawdown"
+                  min="1"
+                  max="50"
+                  value={formData.maxDrawdown}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
+                  Maximum portfolio drawdown limit
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Execution Parameters */}
+          <div className="bg-white dark:bg-dark-800 rounded-xl shadow-lg border border-gray-200 dark:border-dark-700 p-8">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+              ⚡ Execution Parameters
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                  Execution Frequency
+                </label>
+                <select
+                  name="executionFrequency"
+                  value={formData.executionFrequency}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  <option value="1min">Every 1 minute</option>
+                  <option value="5min">Every 5 minutes</option>
+                  <option value="15min">Every 15 minutes</option>
+                  <option value="1hour">Every 1 hour</option>
+                  <option value="4hour">Every 4 hours</option>
+                  <option value="1day">Once daily</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                  Min Trade Amount (SUI)
+                </label>
+                <input
+                  type="number"
+                  name="minTradeAmount"
+                  min="1"
+                  value={formData.minTradeAmount}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
+                  Minimum trade size in SUI
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                  Max Slippage (%)
+                </label>
+                <input
+                  type="number"
+                  name="maxSlippage"
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  value={formData.maxSlippage}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">
+                  Maximum acceptable slippage
+                </p>
+              </div>
             </div>
           </div>
 
@@ -403,7 +1025,7 @@ Please check the console for detailed error information and try again.`);
             <div className="mb-4">
               <label
                 htmlFor="tagInput"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                className="block text-sm font-medium text-gray-700 dark:text-white mb-2"
               >
                 Add Tags
               </label>
@@ -415,7 +1037,7 @@ Please check the console for detailed error information and try again.`);
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyPress={handleTagInputKeyPress}
                   placeholder="e.g., DeFi, Arbitrage, Low Risk"
-                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-dark-600 rounded-lg bg-white dark:bg-dark-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
                 <button
                   type="button"
@@ -450,7 +1072,7 @@ Please check the console for detailed error information and try again.`);
             <button
               type="button"
               onClick={() => router.push("/marketplace")}
-              className="px-6 py-3 border border-gray-300 dark:border-dark-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors"
+              className="px-6 py-3 border border-gray-300 dark:border-dark-600 text-gray-700 dark:text-white rounded-lg hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors"
             >
               Cancel
             </button>
@@ -461,13 +1083,24 @@ Please check the console for detailed error information and try again.`);
             >
               {isTransacting
                 ? "Creating on Blockchain..."
-                : isInitializingBlockchain
-                  ? "Initializing Connection..."
+                : !isReady
+                  ? "Waiting for Blockchain..."
                   : "Create Agent on Sui"}
             </button>
           </div>
         </form>
       </div>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={handleSuccessModalClose}
+        title="🎉 Agent Created Successfully!"
+        message={`Your secure trading agent "${successData.agentName}" has been deployed to the Sui blockchain.`}
+        transactionHash={successData.transactionDigest}
+        agentId={successData.agentId}
+        agentName={successData.agentName}
+      />
     </div>
   );
 };

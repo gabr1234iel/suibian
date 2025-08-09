@@ -93,4 +93,22 @@
   .animate-emoji-bounce {
     animation: emoji-bounce 2s ease-in-out infinite;
   }
+
+  /* Success checkmark animation */
+  @keyframes draw {
+    0% {
+      stroke-dasharray: 0 50;
+      stroke-dashoffset: 0;
+    }
+    100% {
+      stroke-dasharray: 50 0;
+      stroke-dashoffset: 0;
+    }
+  }
+
+  .animate-draw {
+    stroke-dasharray: 50;
+    stroke-dashoffset: 50;
+    animation: draw 0.5s ease-in-out forwards;
+  }
 }

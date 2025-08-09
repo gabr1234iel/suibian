@@ -35,10 +35,10 @@ const AgentDetailPage: React.FC = () => {
           firebaseAgent.is_active ? "Active" : "Inactive",
         ],
         performanceMetrics: {
-          totalReturn: Math.random() * 50 + 10, // Mock for demo
-          winRate: Math.random() * 40 + 60,
-          sharpeRatio: Math.random() * 2 + 1,
-          maxDrawdown: Math.random() * 15 + 5,
+          totalReturn: parseFloat((Math.random() * 50 + 10).toFixed(2)), // Mock for demo
+          winRate: parseFloat((Math.random() * 40 + 60).toFixed(1)),
+          sharpeRatio: parseFloat((Math.random() * 2 + 1).toFixed(2)),
+          maxDrawdown: parseFloat((Math.random() * 15 + 5).toFixed(1)),
         },
         createdAt:
           firebaseAgent.created_at instanceof Date
@@ -177,13 +177,29 @@ const AgentDetailPage: React.FC = () => {
         {/* Strategy Details */}
         <div className="bg-white dark:bg-dark-800 rounded-xl shadow-lg border border-gray-200 dark:border-dark-700 p-8 mb-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Strategy Overview
+            🔒 Secure Trading Strategy
           </h2>
-          <div className="bg-gray-50 dark:bg-dark-700 rounded-lg p-6">
+          <div className="bg-gray-50 dark:bg-dark-700 rounded-lg p-6 mb-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
               Trading Strategy
             </h3>
             <p className="text-gray-700 dark:text-gray-300">{agent.strategy}</p>
+          </div>
+          
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <div className="text-blue-600 dark:text-blue-400 mt-0.5">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">Nautilus TEE Protected</h4>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  This agent executes trades securely within a Trusted Execution Environment with cryptographic attestation.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -195,7 +211,7 @@ const AgentDetailPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
-                {agent.performanceMetrics.totalReturn}%
+                {agent.performanceMetrics.totalReturn.toFixed(2)}%
               </div>
               <div className="text-gray-600 dark:text-gray-400">
                 Total Return
@@ -206,7 +222,7 @@ const AgentDetailPage: React.FC = () => {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                {agent.performanceMetrics.winRate}%
+                {agent.performanceMetrics.winRate.toFixed(1)}%
               </div>
               <div className="text-gray-600 dark:text-gray-400">Win Rate</div>
               <div className="text-sm text-gray-500 dark:text-gray-500 mt-1">
@@ -215,7 +231,7 @@ const AgentDetailPage: React.FC = () => {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-                {agent.performanceMetrics.sharpeRatio}
+                {agent.performanceMetrics.sharpeRatio.toFixed(2)}
               </div>
               <div className="text-gray-600 dark:text-gray-400">
                 Sharpe Ratio
@@ -226,7 +242,7 @@ const AgentDetailPage: React.FC = () => {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-red-600 dark:text-red-400 mb-2">
-                {agent.performanceMetrics.maxDrawdown}%
+                {agent.performanceMetrics.maxDrawdown.toFixed(1)}%
               </div>
               <div className="text-gray-600 dark:text-gray-400">
                 Max Drawdown

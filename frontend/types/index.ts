@@ -57,6 +57,7 @@ export interface AppContextType {
   initializeZkLoginSession: () => Promise<{ nonce: string } | null>;
   login: (credentialResponse: any) => Promise<void>;
   logout: () => void;
+  refreshBalance: () => Promise<void>;
   theme: Theme;
   toggleTheme: () => void;
 }

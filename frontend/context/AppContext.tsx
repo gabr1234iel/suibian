@@ -158,25 +158,28 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     }
   };
 
+  // Separate function to refresh balance
+  const refreshBalance = async () => {
+    if (!userAddress) return;
+    
+    setIsBalanceLoading(true);
+    try {
+      const suiClient = new SuiClient({ url: SUI_DEVNET_RPC_URL });
+      const suiBalance = await suiClient.getBalance({ owner: userAddress });
+      const balanceInSui = Number(suiBalance.totalBalance) / 1_000_000_000;
+      setBalance(balanceInSui);
+      console.log('💰 Balance refreshed:', balanceInSui, 'SUI');
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+      setBalance(null);
+    } finally {
+      setIsBalanceLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!userAddress) return;
-
-    const getBalance = async () => {
-      setIsBalanceLoading(true);
-      try {
-        const suiClient = new SuiClient({ url: SUI_DEVNET_RPC_URL });
-        const suiBalance = await suiClient.getBalance({ owner: userAddress });
-        const balanceInSui = Number(suiBalance.totalBalance) / 1_000_000_000;
-        setBalance(balanceInSui);
-      } catch (error) {
-        console.error("Error fetching balance:", error);
-        setBalance(null);
-      } finally {
-        setIsBalanceLoading(false);
-      }
-    };
-
-    getBalance();
+    refreshBalance();
   }, [userAddress]);
 
   // Simplified user data management (removed Firebase dependency)
@@ -553,6 +556,7 @@ This happens when the app generates new security keys but you're using an old lo
     initializeZkLoginSession,
     login,
     logout,
+    refreshBalance,
     theme,
     toggleTheme,
   };

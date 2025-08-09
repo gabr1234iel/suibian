@@ -28,7 +28,7 @@ interface TransactionResult {
 }
 
 export const useSuiTransactions = () => {
-  const { jwt, userSalt, maxEpoch, userGoogleId, isLoggedIn, ephemeralKeypair, zkProof, randomness } = useAppContext();
+  const { jwt, userSalt, maxEpoch, userGoogleId, isLoggedIn, ephemeralKeypair, zkProof, randomness, refreshBalance } = useAppContext();
   const [isTransacting, setIsTransacting] = useState(false);
   const [transactionManager, setTransactionManager] = useState<ZkLoginTransactionManager | null>(null);
 
@@ -108,6 +108,10 @@ export const useSuiTransactions = () => {
         }
       }
       
+      // Refresh balance to reflect gas fees paid for the transaction
+      console.log('🔄 Refreshing balance after transaction...');
+      await refreshBalance();
+      
       return {
         success: true,
         agentId,
@@ -128,7 +132,7 @@ export const useSuiTransactions = () => {
     } finally {
       setIsTransacting(false);
     }
-  }, [initializeTransactionManager, createRegisterAgentTransaction]);
+  }, [initializeTransactionManager, createRegisterAgentTransaction, refreshBalance]);
 
   // Subscribe to agent (future function)
   const subscribeToAgent = useCallback(async (agentId: string): Promise<TransactionResult> => {
