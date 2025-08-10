@@ -798,12 +798,21 @@ const DashboardPage: React.FC = () => {
                                               return 'Swap Transaction';
                                             })()}
                                           </span>
-                                          {/* AVS Consensus Checkmark - Better aligned */}
+                                          {/* AVS Consensus Checkmark - Clickable Button */}
                                           {tx.validated && (
-                                            <div className="flex items-center space-x-1 bg-green-900/30 border border-green-700/50 rounded-full px-2 py-0.5">
+                                            <button
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                e.nativeEvent.stopImmediatePropagation();
+                                                window.open('https://suiscan.xyz/testnet/tx/2W5CFYmzJvVBQRRzksUKRKP6TQmqL4iH9UouEFsyipU5', '_blank', 'noopener,noreferrer');
+                                              }}
+                                              className="flex items-center space-x-1 bg-green-900/30 border border-green-700/50 rounded-full px-2 py-0.5 hover:bg-green-800/40 hover:border-green-600/60 transition-colors cursor-pointer z-10 relative"
+                                              title="View AVS validation on SuiScan"
+                                            >
                                               <span className="text-green-400 text-xs">✓</span>
                                               <span className="text-xs text-green-400 font-medium">Validated by AVS</span>
-                                            </div>
+                                            </button>
                                           )}
                                         </div>
                                         <span className="text-xs text-gray-400">
