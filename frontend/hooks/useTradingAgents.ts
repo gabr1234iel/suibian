@@ -315,8 +315,9 @@ export const useRecentTradingAgents = (limitCount: number = 10) => {
 
 /**
  * Hook for fetching trading agents a user is subscribed to.
- * It first fetches the user's subscription records and then retrieves
- * the full details for each subscribed agent.
+ * It queries the blockchain directly for UserSubscription objects,
+ * then fetches the agent details from localStorage/Firebase, and
+ * finally merges with blockchain data for the most accurate view.
  *
  * @param userAddress The wallet address of the user.
  * @returns An object containing the subscribed agents, loading state, error, and a refetch function.
@@ -330,7 +331,7 @@ export const useUserSubscribedAgents = (userAddress: string | null) => {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Fetches the user's subscriptions from both localStorage and Firebase, then resolves the agent details for each.
+   * Fetches the user's subscriptions from blockchain, localStorage and Firebase.
    */
   const fetchSubscribedAgents = useCallback(async () => {
     // Exit if no user address is provided, and clear previous results
@@ -343,7 +344,57 @@ export const useUserSubscribedAgents = (userAddress: string | null) => {
     setError(null);
 
     try {
-      // 1. Get subscription data from localStorage
+      // Import Sui client dynamically to avoid SSR issues
+      const { SuiClient, getFullnodeUrl } = await import('@mysten/sui/client');
+      const PACKAGE_ID = "0xfd6a00339d853aae2473bab92a11d2db322604e33339bad08e8e52f97470fa9d";
+      
+      // Initialize Sui client
+      const suiClient = new SuiClient({ url: getFullnodeUrl('devnet') });
+      
+      // 1. Query blockchain for UserSubscription objects owned by the user
+      const blockchainAgentIds = new Set<string>();
+      try {
+        console.log(`⛓️ Querying blockchain for subscriptions owned by ${userAddress}`);
+        
+        const ownedObjects = await suiClient.getOwnedObjects({
+          owner: userAddress,
+          filter: {
+            StructType: `${PACKAGE_ID}::subscription_manager::UserSubscription`
+          },
+          options: {
+            showType: true,
+            showContent: true,
+          }
+        });
+
+        console.log(`⛓️ Found ${ownedObjects.data.length} UserSubscription objects on-chain`);
+
+        // Extract agent IDs from subscription objects
+        for (const obj of ownedObjects.data) {
+          if (obj.data && obj.data.content && 'fields' in obj.data.content) {
+            const fields = obj.data.content.fields as any;
+            if (fields.agent_id && fields.is_active) {
+              // Check if subscription is still active (not expired)
+              const currentTime = Date.now();
+              const subscriptionEnd = parseInt(fields.subscription_end);
+              
+              if (currentTime < subscriptionEnd) {
+                blockchainAgentIds.add(fields.agent_id);
+                console.log(`⛓️ Active subscription found for agent: ${fields.agent_id}`);
+              } else {
+                console.log(`⛓️ Expired subscription found for agent: ${fields.agent_id}`);
+              }
+            }
+          }
+        }
+        
+        console.log(`⛓️ Total active blockchain subscriptions: ${blockchainAgentIds.size}`);
+      } catch (blockchainError) {
+        console.error("Blockchain query failed:", blockchainError);
+        // Continue with other data sources if blockchain query fails
+      }
+
+      // 2. Get subscription data from localStorage
       const localSubscriptions = localStorage.getItem("userSubscriptions");
       const localAgentIds = new Set<string>();
       
@@ -363,12 +414,18 @@ export const useUserSubscribedAgents = (userAddress: string | null) => {
         }
       }
 
-      // 2. Get localStorage agents that match subscription IDs
+      // 3. Merge blockchain and localStorage agent IDs
+      const allAgentIds = new Set<string>();
+      blockchainAgentIds.forEach(id => allAgentIds.add(id));
+      localAgentIds.forEach(id => allAgentIds.add(id));
+      console.log(`🔀 Total unique agent IDs from all sources: ${allAgentIds.size}`);
+
+      // 4. Get agent details from localStorage
       const localAgents: TradingAgent[] = [];
-      if (localAgentIds.size > 0) {
+      if (allAgentIds.size > 0) {
         const storedAgents = JSON.parse(localStorage.getItem('localAgents') || '[]');
         storedAgents.forEach((agent: any) => {
-          if (localAgentIds.has(agent.agent_id)) {
+          if (allAgentIds.has(agent.agent_id)) {
             // Convert localStorage agent to TradingAgent format
             localAgents.push({
               agent_id: agent.agent_id,
@@ -387,42 +444,72 @@ export const useUserSubscribedAgents = (userAddress: string | null) => {
         console.log(`📱 Found ${localAgents.length} matching localStorage agents`);
       }
 
-      // 3. Fetch Firebase subscriptions
+      // 5. Fetch from Firebase for any missing agents
       let firebaseAgents: TradingAgent[] = [];
-      try {
-        const firebaseSubscriptions: UserSubscription[] = await getUserSubscriptions(userAddress);
-        
-        if (firebaseSubscriptions.length > 0) {
-          const firebaseAgentIds = firebaseSubscriptions.map((sub) => sub.agent_id);
-          console.log(`🔥 Found ${firebaseAgentIds.length} Firebase subscriptions`);
-
-          // Fetch the full TradingAgent object for each agent_id concurrently
-          const agentPromises = firebaseAgentIds.map((id) =>
+      const foundAgentIds = new Set(localAgents.map(a => a.agent_id));
+      const missingAgentIds = Array.from(allAgentIds).filter(id => !foundAgentIds.has(id));
+      
+      if (missingAgentIds.length > 0) {
+        console.log(`🔥 Fetching ${missingAgentIds.length} agents from Firebase`);
+        try {
+          // Fetch missing agents from Firebase
+          const agentPromises = missingAgentIds.map((id) =>
             getTradingAgentByAgentId(id)
           );
           const resolvedAgents = await Promise.all(agentPromises);
-
+          
           // Filter out any null results
           firebaseAgents = resolvedAgents.filter(
             (agent): agent is TradingAgent => agent !== null
           );
+          console.log(`🔥 Retrieved ${firebaseAgents.length} agents from Firebase`);
+        } catch (firebaseError) {
+          console.error("Firebase agent fetch failed:", firebaseError);
+        }
+      }
+
+      // 6. Also check Firebase subscriptions as fallback
+      try {
+        const firebaseSubscriptions: UserSubscription[] = await getUserSubscriptions(userAddress);
+        
+        if (firebaseSubscriptions.length > 0) {
+          const firebaseSubAgentIds = firebaseSubscriptions.map((sub) => sub.agent_id);
+          console.log(`🔥 Found ${firebaseSubAgentIds.length} Firebase subscriptions`);
+
+          // Fetch any agents we don't already have
+          const newAgentIds = firebaseSubAgentIds.filter(id => 
+            !foundAgentIds.has(id) && !missingAgentIds.includes(id)
+          );
+          
+          if (newAgentIds.length > 0) {
+            const agentPromises = newAgentIds.map((id) =>
+              getTradingAgentByAgentId(id)
+            );
+            const resolvedAgents = await Promise.all(agentPromises);
+            const additionalAgents = resolvedAgents.filter(
+              (agent): agent is TradingAgent => agent !== null
+            );
+            firebaseAgents.push(...additionalAgents);
+          }
         }
       } catch (firebaseError) {
         console.error("Firebase subscription fetch failed:", firebaseError);
-        // Continue with localStorage-only data
       }
 
-      // 4. Combine localStorage and Firebase agents, prioritizing localStorage and avoiding duplicates
-      const allAgents = [...localAgents];
-      firebaseAgents.forEach(fbAgent => {
-        // Only add if not already in localStorage agents
-        if (!allAgents.some(localAgent => localAgent.agent_id === fbAgent.agent_id)) {
-          allAgents.push(fbAgent);
-        }
-      });
+      // 7. Combine all agents, prioritizing blockchain truth
+      const allAgents = [...localAgents, ...firebaseAgents];
+      
+      // Deduplicate by agent_id
+      const uniqueAgents = Array.from(
+        new Map(allAgents.map(agent => [agent.agent_id, agent])).values()
+      );
 
-      console.log(`✅ Total subscribed agents: ${allAgents.length} (${localAgents.length} local + ${firebaseAgents.length - localAgents.length} Firebase)`);
-      setAgents(allAgents);
+      console.log(`✅ Total subscribed agents: ${uniqueAgents.length}`);
+      console.log(`   - From blockchain: ${blockchainAgentIds.size} subscriptions`);
+      console.log(`   - From localStorage: ${localAgents.length} agents`);
+      console.log(`   - From Firebase: ${firebaseAgents.length} agents`);
+      
+      setAgents(uniqueAgents);
 
     } catch (err) {
       console.error("Error fetching subscribed agents:", err);
